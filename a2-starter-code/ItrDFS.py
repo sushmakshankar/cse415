@@ -1,7 +1,9 @@
 #!/usr/bin/python3
 """ ItrDFS.py
 Iterative Depth-First Search of a problem space.
- Version 1.0, April 8, 2021.
+ Version 1.0, April 8, 2021, with small mod on
+ Oct 8, 2025 to accommodate an alternative representation
+ of the goal_message(s) function.
  Steve Tanimoto, Univ. of Washington, with updates by
  Prashant Rangarajan.
  Paul G. Allen School of Computer Science and Engineering
@@ -71,7 +73,10 @@ class ItrDFS:
             CLOSED.append(S)
 
             if S.is_goal():
-                print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
+                try: 
+                  print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
+                except:
+                  print(self.Problem.goal_message(S))
                 self.PATH = [str(state) for state in self.backtrace(S)]
                 self.PATH_LENGTH = len(self.PATH) - 1
                 print(f"Length of solution path found: {self.PATH_LENGTH} edges")
