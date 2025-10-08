@@ -1,9 +1,7 @@
 '''Farmer_Fox.py
-[STUDENTS: REPLACE THE FOLLOWING INFORMATION WITH YOUR
-OWN:]
-by Janet Jenson and Susan Lee
-UWNetIDs: jjens17, suelee01
-Student numbers: 1799999, 2599999
+by Sushma Shankar and Deveshi Modi
+UWNetIDs: sshan854, dmodi
+Student numbers: 2001840, 2239898
 
 Assignment 2, in CSE 415, Autumn 2025
  
