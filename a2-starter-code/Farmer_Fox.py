@@ -23,6 +23,7 @@ PROBLEM_NAME = "Farmer, Fox, Chicken, and Grain"
 PROBLEM_VERSION = "1.1"
 PROBLEM_AUTHORS = ['S. Shankar, D. Modi']
 PROBLEM_CREATION_DATE = "10-OCT-2025"
+#</METADATA>
 
 
 # Start your Common Code section here.
@@ -148,7 +149,7 @@ class State():
 
         if item == 'fox':
             news.fox_location = new_side
-        elif item = = 'chicken':
+        elif item == 'chicken':
             news.chicken_location = new_side
         elif item == 'grain':
             news.grain_location = new_side
@@ -160,19 +161,13 @@ class State():
         '''If everything is on the right side, then s is a goal state.'''
         return self.farmer_location == RIGHT and self.fox_location == RIGHT and self.chicken_location == RIGHT and self.grain_location == RIGHT
 
-
-#<INITIAL_STATE>
-CREATE_INITIAL_STATE = lambda : State() #directly from hrf
-#</INITIAL_STATE>
-
-# Put your OPERATORS section here.
-#<OPERATORS>
-ITEMS = ['farmer', 'fox', 'chicken', 'grain']
-OPERATORS = [Operator(item) for item in ITEMS]
-
 class Operator:
     def __init__(self, item):
         self.item = item
+        if item == 'farmer':
+            self.name = "Farmer crosses alone"
+        else:
+            self.name = f"Farmer takes {item} across"
     
     def is_applicable(self, s):
         return s.can_move(self.item)
@@ -186,15 +181,30 @@ class Operator:
         else:
             return f"Farmer takes {self.item} across"
 
+#</COMMON_CODE>
+
+#<INITIAL_STATE>
+CREATE_INITIAL_STATE = lambda : State() #directly from hrf
+#</INITIAL_STATE>
+
+# Put your OPERATORS section here.
+#<OPERATORS>
+ITEMS = ['farmer', 'fox', 'chicken', 'grain']
+OPERATORS = [Operator(item) for item in ITEMS]
+#</OPERATORS>
+
 # etc.
 
 
 # Finish off with the GOAL_TEST and GOAL_MESSAGE_FUNCTION here.
+#<GOAL_TEST>
 GOAL_TEST = lambda s: (s.farmer_location == RIGHT and 
                        s.fox_location == RIGHT and
                        s.chicken_location == RIGHT and 
                        s.grain_location == RIGHT)
+#</GOAL_TEST>
 
+#<GOAL_MESSAGE_FUNCTION>
 GOAL_MESSAGE_FUNCTION = lambda s: "Congratulations! The farmer has successfully transported the fox, chicken, and grain across the river!"
-
+#</GOAL_MESSAGE_FUNCTION>
 
