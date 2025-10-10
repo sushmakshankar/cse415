@@ -18,7 +18,7 @@ the Farmer, Fox, Chicken, and Grain.
 
 # Put your metadata here, in the same format as in HumansRobotsFerry.
 
-#</METADATA>
+#<METADATA> 
 PROBLEM_NAME = "Farmer, Fox, Chicken, and Grain"
 PROBLEM_VERSION = "1.1"
 PROBLEM_AUTHORS = ['S. Shankar, D. Modi']
