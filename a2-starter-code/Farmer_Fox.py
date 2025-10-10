@@ -23,17 +23,20 @@ PROBLEM_NAME = "Farmer, Fox, Chicken, and Grain"
 PROBLEM_VERSION = "1.1"
 PROBLEM_AUTHORS = ['S. Shankar, D. Modi']
 PROBLEM_CREATION_DATE = "10-OCT-2025"
-#</METADATA>
 
+PROBLEM_DESC=\
+    '''The <b>"Farmer, Fox, Chicken, and Grain"</b> problem is a classic river-crossing puzzle.
+    The player starts off with one of each of the four items on the left bank of a river. The objective is to
+    transfer all items to the right bank of the river using a boat that can carry only the farmer and one item at a time.
+    The challenge is to ensure that the fox is never left alone with the chicken (as the fox would eat the chicken),
+    and the chicken is never left alone with the grain (as the chicken would eat the grain) when the farmer is not present.
+    The computer will not allow any move that would result in an unsafe situation, and it will only show moves that can be executed safely.
+    '''
+#</METADATA>
 
 # Start your Common Code section here.
 
 #<COMMON_CODE>
-# change this potentially? what is common code
-# Farmer_location = 1
-# Chicken_location = 1
-# Fox_location = 1
-# Grain_location = 1
 # this below represents the location of the boat
 LEFT=1
 RIGHT=0
@@ -85,14 +88,14 @@ class State():
         return State(old=self)
     
     def can_move(self, item):
-        '''Tests whether it's legal to move the ferry and take
-         item (farmer, fox, chicken, grain).'''
+        '''Tests whether it's legal to move the ferry and take the
+         item (fox, chicken, grain) with the farmer.'''
         side = self.boat
-        # NEED TO IMPLEMENT THIS
         # boat can only have 3 items max
         # fox cannot be with chicken alone
         # chicken cannot be left alone with grain
-        # solution: 1) chicken/farmer to R, farmer comes back alone
+        # solution: 
+        # 1) chicken/farmer to R, farmer comes back alone
         # 2) farmer/grain to R, farmer/chicken come back
         # 3) farmer/fox to R, farmer comes back alone
         # 4) farmer/chicken to R
@@ -113,6 +116,7 @@ class State():
         new_side = 1 - side
         # simulate the move
         new_farmer_location = new_side  
+
         if item == 'fox':
             new_chicken_location = self.chicken_location
             new_fox_location = new_side
@@ -159,7 +163,10 @@ class State():
     
     def is_goal(self):
         '''If everything is on the right side, then s is a goal state.'''
-        return self.farmer_location == RIGHT and self.fox_location == RIGHT and self.chicken_location == RIGHT and self.grain_location == RIGHT
+        return (self.farmer_location == RIGHT and 
+                self.fox_location == RIGHT and 
+                self.chicken_location == RIGHT and 
+                self.grain_location == RIGHT)
 
 class Operator:
     def __init__(self, item):
@@ -167,7 +174,7 @@ class Operator:
         if item == 'farmer':
             self.name = "Farmer crosses alone"
         else:
-            self.name = f"Farmer takes {item} across"
+            self.name = "Farmer takes " + item + "across"
     
     def is_applicable(self, s):
         return s.can_move(self.item)
@@ -176,15 +183,16 @@ class Operator:
         return s.move(self.item)
     
     def __str__(self):
-        if self.item == 'farmer':
-            return "Farmer crosses alone"
-        else:
-            return f"Farmer takes {self.item} across"
+        # if self.item == 'farmer':
+        #     return "Farmer crosses alone"
+        # else:
+        #     return "Farmer takes " + self.item + "across"
+        return self.name
 
 #</COMMON_CODE>
 
 #<INITIAL_STATE>
-CREATE_INITIAL_STATE = lambda : State() #directly from hrf
+CREATE_INITIAL_STATE = lambda : State() 
 #</INITIAL_STATE>
 
 # Put your OPERATORS section here.
@@ -198,10 +206,11 @@ OPERATORS = [Operator(item) for item in ITEMS]
 
 # Finish off with the GOAL_TEST and GOAL_MESSAGE_FUNCTION here.
 #<GOAL_TEST>
-GOAL_TEST = lambda s: (s.farmer_location == RIGHT and 
-                       s.fox_location == RIGHT and
-                       s.chicken_location == RIGHT and 
-                       s.grain_location == RIGHT)
+# GOAL_TEST = lambda s: (s.farmer_location == RIGHT and 
+#                        s.fox_location == RIGHT and
+#                        s.chicken_location == RIGHT and 
+#                        s.grain_location == RIGHT)
+GOAL_TEST = lambda s: s.is_goal()
 #</GOAL_TEST>
 
 #<GOAL_MESSAGE_FUNCTION>
