@@ -29,10 +29,10 @@ PROBLEM_CREATION_DATE = "10-OCT-2025"
 
 #<COMMON_CODE>
 # change this potentially? what is common code
-Farmer_location = 1
-Chicken_location = 1
-Fox_location = 1
-Grain_location = 1
+# Farmer_location = 1
+# Chicken_location = 1
+# Fox_location = 1
+# Grain_location = 1
 # this below represents the location of the boat
 LEFT=1
 RIGHT=0
@@ -49,10 +49,10 @@ class State():
             self.grain_location = LEFT
             self.boat = LEFT
         else:
-            self.farmer = old.farmer_location
-            self.chicken = old.chicken_location
-            self.fox = old.fox_location
-            self.grain = old.grain_location
+            self.farmer_location = old.farmer_location
+            self.chicken_location = old.chicken_location
+            self.fox_location = old.fox_location
+            self.grain_location = old.grain_location
             self.boat = old.boat
 
     def __eq__(self, s2):
@@ -96,6 +96,72 @@ class State():
         # 3) farmer/fox to R, farmer comes back alone
         # 4) farmer/chicken to R
 
+        # farmer must be on the boat
+        if self.farmer_location != side:
+            return False
+        
+        # check if item is on the same side as the boat
+        if item != 'farmer':
+            if item == 'chicken' and self.chicken_location != side:
+                return False
+            if item == 'fox' and self.fox_location != side:
+                return False
+            if item == 'grain' and self.grain_location != side:
+                return False
+
+        new_side = 1 - side
+        # simulate the move
+        new_farmer_location = new_side  
+        if item == 'chicken':
+            new_chicken_location = new_side
+            new_fox_location = self.fox_location
+            new_grain_location = self.grain_location
+        elif item == 'fox':
+            new_chicken_location = self.chicken_location
+            new_fox_location = new_side
+            new_grain_location = self.grain_location
+        elif item == 'grain':
+            new_chicken_location = self.chicken_location
+            new_fox_location = self.fox_location
+            new_grain_location = new_side
+        else:  # item is farmer only
+            new_chicken_location = self.chicken_location
+            new_fox_location = self.fox_location
+            new_grain_location = self.grain_location
+        
+        # check if chicken is with the fox
+        if new_fox_location == new_chicken_location and new_farmer_location != new_chicken_location:
+            return False
+        
+        # check if chicken is with the grain
+        if new_chicken_location == new_grain_location and new_farmer_location != new_chicken_location:
+            return False
+        
+        return True
+    
+    def move(self, item):
+        '''Assuming it's legal to make the move, this computes
+       the new state resulting from moving the item with the farmer.'''
+        news = self.copy() 
+        new_side = 1 - self.boat
+        news.farmer_location = new_side
+
+        if item = = 'chicken':
+            news.chicken_location = new_side
+        elif item == 'fox':
+            news.fox_location = new_side
+        elif item == 'grain':
+            news.grain_location = new_side
+        # move the boat
+        news.boat = new_side
+        return news
+    
+    def is_goal(self):
+        '''If everything is on the right side, then s is a goal state.'''
+        return self.farmer_location == RIGHT and self.chicken_location == RIGHT and self.fox_location == RIGHT and self.grain_location == RIGHT
+
+def goal_message(s):
+    return "The Farmer-Fox-Chicken-and-Grain Problem is Solved!"
 
 # Put your INITIAL STATE section here.
 #<INITIAL_STATE>
