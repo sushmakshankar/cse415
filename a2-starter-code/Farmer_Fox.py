@@ -44,21 +44,21 @@ class State():
         # if there is no old state, the default state is that everything is on the left side
         if old is None:
             self.farmer_location = LEFT
-            self.chicken_location = LEFT
             self.fox_location = LEFT
+            self.chicken_location = LEFT
             self.grain_location = LEFT
             self.boat = LEFT
         else:
             self.farmer_location = old.farmer_location
-            self.chicken_location = old.chicken_location
             self.fox_location = old.fox_location
+            self.chicken_location = old.chicken_location
             self.grain_location = old.grain_location
             self.boat = old.boat
 
     def __eq__(self, s2):
         if self.farmer_location != s2.farmer_location: return False
-        if self.chicken_location != s2.chicken_location: return False
         if self.fox_location != s2.fox_location: return False
+        if self.chicken_location != s2.chicken_location: return False
         if self.grain_location != s2.grain_location: return False
         if self.boat != s2.boat: return False
         return True
@@ -66,8 +66,8 @@ class State():
     def __str__(self):
         # Produces a textual description of a state.
         txt = "\n Farmer location:"+str(self.farmer_location)+"\n"
-        txt += " Chicken location:"+str(self.chicken_location)+"\n"
         txt += " Fox location:"+str(self.fox_location)+"\n"
+        txt += " Chicken location:"+str(self.chicken_location)+"\n"
         txt += " Grain location:"+str(self.grain_location)+"\n"
         if self.boat == LEFT:
             txt += " Boat location: LEFT\n"
@@ -85,7 +85,7 @@ class State():
     
     def can_move(self, item):
         '''Tests whether it's legal to move the ferry and take
-         item (farmer, chicken, fox, grain).'''
+         item (farmer, fox, chicken, grain).'''
         side = self.boat
         # NEED TO IMPLEMENT THIS
         # boat can only have 3 items max
@@ -102,9 +102,9 @@ class State():
         
         # check if item is on the same side as the boat
         if item != 'farmer':
-            if item == 'chicken' and self.chicken_location != side:
-                return False
             if item == 'fox' and self.fox_location != side:
+                return False
+            if item == 'chicken' and self.chicken_location != side:
                 return False
             if item == 'grain' and self.grain_location != side:
                 return False
@@ -112,13 +112,13 @@ class State():
         new_side = 1 - side
         # simulate the move
         new_farmer_location = new_side  
-        if item == 'chicken':
-            new_chicken_location = new_side
-            new_fox_location = self.fox_location
-            new_grain_location = self.grain_location
-        elif item == 'fox':
+        if item == 'fox':
             new_chicken_location = self.chicken_location
             new_fox_location = new_side
+            new_grain_location = self.grain_location
+        elif item == 'chicken':
+            new_chicken_location = new_side
+            new_fox_location = self.fox_location
             new_grain_location = self.grain_location
         elif item == 'grain':
             new_chicken_location = self.chicken_location
@@ -146,10 +146,10 @@ class State():
         new_side = 1 - self.boat
         news.farmer_location = new_side
 
-        if item = = 'chicken':
-            news.chicken_location = new_side
-        elif item == 'fox':
+        if item == 'fox':
             news.fox_location = new_side
+        elif item = = 'chicken':
+            news.chicken_location = new_side
         elif item == 'grain':
             news.grain_location = new_side
         # move the boat
@@ -158,25 +158,43 @@ class State():
     
     def is_goal(self):
         '''If everything is on the right side, then s is a goal state.'''
-        return self.farmer_location == RIGHT and self.chicken_location == RIGHT and self.fox_location == RIGHT and self.grain_location == RIGHT
+        return self.farmer_location == RIGHT and self.fox_location == RIGHT and self.chicken_location == RIGHT and self.grain_location == RIGHT
 
-def goal_message(s):
-    return "The Farmer-Fox-Chicken-and-Grain Problem is Solved!"
 
-# Put your INITIAL STATE section here.
 #<INITIAL_STATE>
 CREATE_INITIAL_STATE = lambda : State() #directly from hrf
 #</INITIAL_STATE>
 
 # Put your OPERATORS section here.
 #<OPERATORS>
-HR_combinations = [(1,0),(2,0),(3,0),(1,1),(2,1)] #directly from hrf
+ITEMS = ['farmer', 'fox', 'chicken', 'grain']
+OPERATORS = [Operator(item) for item in ITEMS]
 
 class Operator:
-    pass
+    def __init__(self, item):
+        self.item = item
+    
+    def is_applicable(self, s):
+        return s.can_move(self.item)
+    
+    def apply(self, s):
+        return s.move(self.item)
+    
+    def __str__(self):
+        if self.item == 'farmer':
+            return "Farmer crosses alone"
+        else:
+            return f"Farmer takes {self.item} across"
 
 # etc.
 
 
 # Finish off with the GOAL_TEST and GOAL_MESSAGE_FUNCTION here.
+GOAL_TEST = lambda s: (s.farmer_location == RIGHT and 
+                       s.fox_location == RIGHT and
+                       s.chicken_location == RIGHT and 
+                       s.grain_location == RIGHT)
+
+GOAL_MESSAGE_FUNCTION = lambda s: "Congratulations! The farmer has successfully transported the fox, chicken, and grain across the river!"
+
 
