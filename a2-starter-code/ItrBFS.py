@@ -23,7 +23,6 @@ class ItrBFS:
         Dynamically import the problem formulation.
         Handles both string module names and direct module objects.
         """
-        # Try to import safely
         if isinstance(problem_name, str):
             try:
                 self.Problem = importlib.import_module(problem_name)
@@ -35,7 +34,6 @@ class ItrBFS:
         else:
             raise TypeError("Problem must be module name string or module object")
 
-        # Core statistics for autograder
         self.COUNT = 0
         self.MAX_OPEN_LENGTH = 0
         self.PATH = []
@@ -47,7 +45,6 @@ class ItrBFS:
         try:
             initial_state = self.Problem.CREATE_INITIAL_STATE()
         except AttributeError:
-            # Defensive fallback: re-import if self.Problem was replaced by a string
             if isinstance(self.Problem, str):
                 self.Problem = importlib.import_module(self.Problem)
                 initial_state = self.Problem.CREATE_INITIAL_STATE()
@@ -65,11 +62,10 @@ class ItrBFS:
 
             S = OPEN.popleft()
 
-            # Check goal before expanding (autograder expects this)
             try:
                 is_goal = self.Problem.GOAL_TEST(S)
             except AttributeError:
-                # Handle weird import/print side effects (e.g., TowersOfHanoi)
+                
                 if isinstance(self.Problem, str):
                     self.Problem = importlib.import_module(self.Problem)
                     is_goal = self.Problem.GOAL_TEST(S)
