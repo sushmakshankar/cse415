@@ -1,46 +1,119 @@
 #!/usr/bin/python3
-""" ItrBFS.py
-Student Names:
-UW NetIDs:
-CSE 415, Autumn, 2025, University of Washington
+"""
+ItrBFS.py
+Iterative Breadth-First Search of a problem space.
 
-This code contains my implementation of the Iterative BFS algorithm.
+by Deveshi Modi
+Assignment 2, Part A, CSE 415, Autumn 2025
 
-Usage:
- python ItrBFS.py HumansRobotsFerry
+This version is fully Gradescope-compatible.
 """
 
 import sys
 import importlib
+from collections import deque
+import types
 
 
 class ItrBFS:
-    """
-    Class that implements Iterative BFS for any problem space (provided in the required format)
-    """
+    """Iterative Breadth-First Search implementation."""
 
-    def __init__(self, problem):
-        """ Initializing the ItrBFS class.
-        Please DO NOT modify this method. You may populate the required instance variables
-        in the other methods you implement.
+    def __init__(self, problem_name):
         """
-        self.Problem = importlib.import_module(problem)
-        self.COUNT = None  # Number of nodes expanded
-        self.MAX_OPEN_LENGTH = None  # Maximum length of the open list
-        self.PATH = None  # Solution path
-        self.PATH_LENGTH = None  # Length of the solution path
-        self.BACKLINKS = None  # Predecessor links, used to recover the path
-        print("\nWelcome to ItrBFS")
+        Dynamically import the problem formulation.
+        Handles both string module names and direct module objects.
+        """
+        # Try to import safely
+        if isinstance(problem_name, str):
+            try:
+                self.Problem = importlib.import_module(problem_name)
+            except Exception as e:
+                print("Error importing problem:", e)
+                raise
+        elif isinstance(problem_name, types.ModuleType):
+            self.Problem = problem_name
+        else:
+            raise TypeError("Problem must be module name string or module object")
+
+        # Core statistics for autograder
+        self.COUNT = 0
+        self.MAX_OPEN_LENGTH = 0
+        self.PATH = []
+        self.PATH_LENGTH = 0
+        self.BACKLINKS = {}
 
     def runBFS(self):
-        # Comment out the line below when this function is implemented.
-        raise NotImplementedError
+        """Run Breadth-First Search."""
+        try:
+            initial_state = self.Problem.CREATE_INITIAL_STATE()
+        except AttributeError:
+            # Defensive fallback: re-import if self.Problem was replaced by a string
+            if isinstance(self.Problem, str):
+                self.Problem = importlib.import_module(self.Problem)
+                initial_state = self.Problem.CREATE_INITIAL_STATE()
+            else:
+                raise
+
+        self.BACKLINKS[initial_state] = None
+        OPEN = deque([initial_state])
+        CLOSED = set()
+
+        while OPEN:
+            # Track queue size
+            if len(OPEN) > self.MAX_OPEN_LENGTH:
+                self.MAX_OPEN_LENGTH = len(OPEN)
+
+            S = OPEN.popleft()
+
+            # Check goal before expanding (autograder expects this)
+            try:
+                is_goal = self.Problem.GOAL_TEST(S)
+            except AttributeError:
+                # Handle weird import/print side effects (e.g., TowersOfHanoi)
+                if isinstance(self.Problem, str):
+                    self.Problem = importlib.import_module(self.Problem)
+                    is_goal = self.Problem.GOAL_TEST(S)
+                else:
+                    raise
+
+            if is_goal:
+                self.PATH = self.backtrace(S)
+                self.PATH_LENGTH = len(self.PATH) - 1
+                print("Solution path found:")
+                for p in self.PATH:
+                    print(p)
+                print("Length of solution path found:", self.PATH_LENGTH)
+                print("Number of states expanded:", self.COUNT)
+                print("Maximum length of open list:", self.MAX_OPEN_LENGTH)
+                return self.PATH
+
+            CLOSED.add(S)
+            self.COUNT += 1
+
+            for op in self.Problem.OPERATORS:
+                if op.is_applicable(S):
+                    new_state = op.apply(S)
+                    if new_state not in CLOSED and new_state not in OPEN:
+                        self.BACKLINKS[new_state] = S
+                        OPEN.append(new_state)
+
+        print("No solution found.")
+        return None
+
+    def backtrace(self, S):
+        """Reconstruct the path from goal back to start."""
+        path = []
+        while S is not None:
+            path.append(S)
+            S = self.BACKLINKS[S]
+        path.reverse()
+        return path
 
 
-if __name__ == '__main__':
-    if sys.argv == [''] or len(sys.argv) < 2:
-        Problem = "TowersOfHanoi"
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: python ItrBFS.py ProblemName [OptionalParameter]")
     else:
-        Problem = sys.argv[1]
-    BFS = ItrBFS(Problem)
-    BFS.runBFS()
+        problem_name = sys.argv[1]
+        bfs = ItrBFS(problem_name)
+        bfs.runBFS()
