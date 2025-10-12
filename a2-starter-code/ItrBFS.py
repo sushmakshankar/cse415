@@ -42,15 +42,20 @@ class ItrBFS:
 
     def runBFS(self):
         """Run Breadth-First Search."""
-        try:
-            initial_state = self.Problem.CREATE_INITIAL_STATE()
-        except AttributeError:
-            if isinstance(self.Problem, str):
-                self.Problem = importlib.import_module(self.Problem)
-                initial_state = self.Problem.CREATE_INITIAL_STATE()
-            else:
-                raise
+        # try:
+        #     initial_state = self.Problem.CREATE_INITIAL_STATE()
+        # except AttributeError:
+        #     if isinstance(self.Problem, str):
+        #         self.Problem = importlib.import_module(self.Problem)
+        #         initial_state = self.Problem.CREATE_INITIAL_STATE()
+        #     else:
+        #         raise
 
+        # self.BACKLINKS[initial_state] = None
+        # OPEN = deque([initial_state])
+        # CLOSED = set()
+
+        initial_state = self.Problem.CREATE_INITIAL_STATE()
         self.BACKLINKS[initial_state] = None
         OPEN = deque([initial_state])
         CLOSED = set()
@@ -64,14 +69,20 @@ class ItrBFS:
 
             # ---- robust goal test ----
             # Prefer module-level GOAL_TEST if present, otherwise try state.is_goal()
-            if hasattr(self.Problem, "GOAL_TEST") and callable(getattr(self.Problem, "GOAL_TEST")):
-                is_goal = self.Problem.GOAL_TEST(S)
-            elif hasattr(S, "is_goal") and callable(getattr(S, "is_goal")):
-                is_goal = S.is_goal()
-            else:
-                raise AttributeError("No GOAL_TEST found in problem module and state has no is_goal() method.")
+            # if hasattr(self.Problem, "GOAL_TEST") and callable(getattr(self.Problem, "GOAL_TEST")):
+            #     is_goal = self.Problem.GOAL_TEST(S)
+            # elif hasattr(S, "is_goal") and callable(getattr(S, "is_goal")):
+            #     is_goal = S.is_goal()
+            # else:
+            #     raise AttributeError("No GOAL_TEST found in problem module and state has no is_goal() method.")
             # ---------------------------
-
+            if hasattr(S, "is_goal") and callable(S.is_goal):
+                is_goal = S.is_goal()
+            elif hasattr(self.Problem, "GOAL_TEST"):
+                is_goal = self.Problem.GOAL_TEST(S)
+            else:
+                raise AttributeError("No GOAL_TEST or is_goal() found.")
+    
             if is_goal:
                 # call goal message function if exists
                 if hasattr(self.Problem, "GOAL_MESSAGE_FUNCTION") and callable(getattr(self.Problem, "GOAL_MESSAGE_FUNCTION")):
