@@ -24,11 +24,11 @@ class ItrBFS:
         Handles both string module names and direct module objects.
         """
         if isinstance(problem_name, str):
-            try:
-                self.Problem = importlib.import_module(problem_name)
-            except Exception as e:
-                print("Error importing problem:", e)
-                raise
+            # try:
+            self.Problem = importlib.import_module(problem_name)
+            # except Exception as e:
+            #     print("Error importing problem:", e)
+            #     raise
         elif isinstance(problem_name, types.ModuleType):
             self.Problem = problem_name
         else:
@@ -83,21 +83,28 @@ class ItrBFS:
             else:
                 raise AttributeError("No GOAL_TEST or is_goal() found.")
     
-            if is_goal:
-                # call goal message function if exists
-                if hasattr(self.Problem, "GOAL_MESSAGE_FUNCTION") and callable(getattr(self.Problem, "GOAL_MESSAGE_FUNCTION")):
-                    print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
-                self.PATH = self.backtrace(S)
+            # if is_goal:
+            #     # call goal message function if exists
+            #     if hasattr(self.Problem, "GOAL_MESSAGE_FUNCTION") and callable(getattr(self.Problem, "GOAL_MESSAGE_FUNCTION")):
+            #         print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
+            #     self.PATH = self.backtrace(S)
+            #     self.PATH_LENGTH = len(self.PATH) - 1
+            #     print("Solution path found:")
+            #     for p in self.PATH:
+            #         print(p)
+            #     print("Length of solution path found:", self.PATH_LENGTH)
+            #     print("Number of states expanded:", self.COUNT)
+            #     print("Maximum length of open list:", self.MAX_OPEN_LENGTH)
+            #     return self.PATH
+            
+            if self.Problem.GOAL_TEST(S):
+                print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
+                self.PATH = [str(state) for state in self.backtrace(S)]
                 self.PATH_LENGTH = len(self.PATH) - 1
-                print("Solution path found:")
-                for p in self.PATH:
-                    print(p)
-                print("Length of solution path found:", self.PATH_LENGTH)
-                print("Number of states expanded:", self.COUNT)
-                print("Maximum length of open list:", self.MAX_OPEN_LENGTH)
-                return self.PATH
+                print(f"Length of solution path found: {self.PATH_LENGTH} edges")
+                return 
 
-            CLOSED.add(S)
+            # CLOSED.add(S)
             self.COUNT += 1
 
             for op in self.Problem.OPERATORS:
