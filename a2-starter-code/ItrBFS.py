@@ -62,17 +62,20 @@ class ItrBFS:
 
             S = OPEN.popleft()
 
-            try:
+            # ---- robust goal test ----
+            # Prefer module-level GOAL_TEST if present, otherwise try state.is_goal()
+            if hasattr(self.Problem, "GOAL_TEST") and callable(getattr(self.Problem, "GOAL_TEST")):
                 is_goal = self.Problem.GOAL_TEST(S)
-            except AttributeError:
-                
-                if isinstance(self.Problem, str):
-                    self.Problem = importlib.import_module(self.Problem)
-                    is_goal = self.Problem.GOAL_TEST(S)
-                else:
-                    raise
+            elif hasattr(S, "is_goal") and callable(getattr(S, "is_goal")):
+                is_goal = S.is_goal()
+            else:
+                raise AttributeError("No GOAL_TEST found in problem module and state has no is_goal() method.")
+            # ---------------------------
 
             if is_goal:
+                # call goal message function if exists
+                if hasattr(self.Problem, "GOAL_MESSAGE_FUNCTION") and callable(getattr(self.Problem, "GOAL_MESSAGE_FUNCTION")):
+                    print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
                 self.PATH = self.backtrace(S)
                 self.PATH_LENGTH = len(self.PATH) - 1
                 print("Solution path found:")
@@ -95,6 +98,7 @@ class ItrBFS:
 
         print("No solution found.")
         return None
+
 
     def backtrace(self, S):
         """Reconstruct the path from goal back to start."""
