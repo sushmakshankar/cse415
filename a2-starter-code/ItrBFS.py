@@ -35,11 +35,11 @@ class ItrBFS:
         #     raise TypeError("Problem must be module name string or module object")
 
         self.Problem = importlib.import_module(problem_name)
-        self.COUNT = 0
-        self.MAX_OPEN_LENGTH = 0
-        self.PATH = []
-        self.PATH_LENGTH = 0
-        self.BACKLINKS = {}
+        self.COUNT = None
+        self.MAX_OPEN_LENGTH = None
+        self.PATH = None
+        self.PATH_LENGTH = None
+        self.BACKLINKS = None
 
     def runBFS(self):
         """Run Breadth-First Search."""
