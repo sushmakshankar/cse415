@@ -61,25 +61,8 @@ class ItrBFS:
         self.MAX_OPEN_LENGTH = 0 # new
         self.BACKLINKS = {} # new
 
-        OPEN = [initial_state] # new
-        CLOSED = [] #new
-        self.BACKLINKS[initial_state] = None
-        # OPEN = deque([initial_state])
-        # CLOSED = set()
-
-        while OPEN != []:
-            # Track queue size
-            report(OPEN, CLOSED, self.COUNT) # new
-            if len(OPEN) > self.MAX_OPEN_LENGTH:
-                self.MAX_OPEN_LENGTH = len(OPEN)
-
-            S = OPEN.pop(0) # new
-            CLOSED.append(S) # new
-            # S = OPEN.popleft()
-
-            # new below
-            print(f"len(OPEN)= {len(OPEN)}; len(CLOSED)= {len(CLOSED)}; COUNT = {self.COUNT}")
-            print("OPEN is now:", [str(s) for s in OPEN])
+        self.iterativeBFS(initial_state) # new
+        
 
             # ---- robust goal test ----
             # Prefer module-level GOAL_TEST if present, otherwise try state.is_goal()
@@ -116,6 +99,32 @@ class ItrBFS:
             # self.COUNT += 1
             # ---------------------------
             
+
+
+        # print("No solution found.")
+        # return None
+
+    def iterativeBFS(self, initial_state): 
+        OPEN = [initial_state] # new
+        CLOSED = [] #new
+        self.BACKLINKS[initial_state] = None
+        # OPEN = deque([initial_state])
+        # CLOSED = set()
+
+        while OPEN != []:
+            # Track queue size
+            report(OPEN, CLOSED, self.COUNT) # new
+            if len(OPEN) > self.MAX_OPEN_LENGTH:
+                self.MAX_OPEN_LENGTH = len(OPEN)
+
+            S = OPEN.pop(0) # new
+            CLOSED.append(S) # new
+            # S = OPEN.popleft()
+
+            # new below
+            print(f"len(OPEN)= {len(OPEN)}; len(CLOSED)= {len(CLOSED)}; COUNT = {self.COUNT}")
+            print("OPEN is now:", [str(s) for s in OPEN])
+
             if self.Problem.GOAL_TEST(S):
                 print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
                 self.PATH = [str(state) for state in self.backtrace(S)]
@@ -134,9 +143,6 @@ class ItrBFS:
             OPEN.extend(L)
             printStateList("OPEN", OPEN)
 
-        print("No solution found.")
-        return None
-
 
     def backtrace(self, S):
         """Reconstruct the path from goal back to start."""
@@ -147,6 +153,8 @@ class ItrBFS:
         path.reverse()
         return path
     
+    
+
 def printStateList(lst_name, lst):
     """
     Prints the states in lst with name lst_name
