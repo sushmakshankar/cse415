@@ -18,28 +18,17 @@ import types
 class ItrBFS:
     """Iterative Breadth-First Search implementation."""
 
-    def __init__(self, problem_name):
+    def __init__(self, problem):
+        """ Initializing the ItrBFS class.
+        Please DO NOT modify this method. You may populate the required instance variables
+        in the other methods you implement.
         """
-        Dynamically import the problem formulation.
-        Handles both string module names and direct module objects.
-        """
-        # if isinstance(problem_name, str):
-        #     # try:
-        #     self.Problem = importlib.import_module(problem_name)
-        #     # except Exception as e:
-        #     #     print("Error importing problem:", e)
-        #     #     raise
-        # elif isinstance(problem_name, types.ModuleType):
-        #     self.Problem = problem_name
-        # else:
-        #     raise TypeError("Problem must be module name string or module object")
-
-        self.Problem = importlib.import_module(problem_name)
-        self.COUNT = None
-        self.MAX_OPEN_LENGTH = None
-        self.PATH = None
-        self.PATH_LENGTH = None
-        self.BACKLINKS = None
+        self.Problem = importlib.import_module(problem)
+        self.COUNT = None  # Number of nodes expanded
+        self.MAX_OPEN_LENGTH = None  # Maximum length of the open list
+        self.PATH = None  # Solution path
+        self.PATH_LENGTH = None  # Length of the solution path
+        self.BACKLINKS = None  # Predecessor links, used to recover the path
         print("\nWelcome to ItrBFS")
 
     def runBFS(self):
@@ -144,6 +133,7 @@ class ItrBFS:
                 if op.is_applicable(S):
                     new_state = op.apply(S)
                     if (new_state not in CLOSED) and (new_state not in OPEN):
+                        L.append(new_state)
                         self.BACKLINKS[new_state] = S
                         # OPEN.append(new_state)
             OPEN.extend(L)
