@@ -170,4 +170,3 @@ TITLE = "Int_Solv_Client (Version 1)"
 if __name__ == '__main__':
     mainloop()
     print("The session is finished.")
-

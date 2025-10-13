@@ -23,17 +23,18 @@ class ItrBFS:
         Dynamically import the problem formulation.
         Handles both string module names and direct module objects.
         """
-        if isinstance(problem_name, str):
-            # try:
-            self.Problem = importlib.import_module(problem_name)
-            # except Exception as e:
-            #     print("Error importing problem:", e)
-            #     raise
-        elif isinstance(problem_name, types.ModuleType):
-            self.Problem = problem_name
-        else:
-            raise TypeError("Problem must be module name string or module object")
+        # if isinstance(problem_name, str):
+        #     # try:
+        #     self.Problem = importlib.import_module(problem_name)
+        #     # except Exception as e:
+        #     #     print("Error importing problem:", e)
+        #     #     raise
+        # elif isinstance(problem_name, types.ModuleType):
+        #     self.Problem = problem_name
+        # else:
+        #     raise TypeError("Problem must be module name string or module object")
 
+        self.Problem = importlib.import_module(problem_name)
         self.COUNT = 0
         self.MAX_OPEN_LENGTH = 0
         self.PATH = []
@@ -56,16 +57,29 @@ class ItrBFS:
         # CLOSED = set()
 
         initial_state = self.Problem.CREATE_INITIAL_STATE()
-        self.BACKLINKS[initial_state] = None
-        OPEN = deque([initial_state])
-        CLOSED = set()
+        self.COUNT = 0 # new
+        self.MAX_OPEN_LENGTH = 0 # new
+        self.BACKLINKS = {} # new
 
-        while OPEN:
+        OPEN = [initial_state] # new
+        CLOSED = [] #new
+        self.BACKLINKS[initial_state] = None
+        # OPEN = deque([initial_state])
+        # CLOSED = set()
+
+        while OPEN != []:
             # Track queue size
+            report(OPEN, CLOSED, self.COUNT) # new
             if len(OPEN) > self.MAX_OPEN_LENGTH:
                 self.MAX_OPEN_LENGTH = len(OPEN)
 
-            S = OPEN.popleft()
+            S = OPEN.pop(0) # new
+            CLOSED.append(S) # new
+            # S = OPEN.popleft()
+
+            # new below
+            print(f"len(OPEN)= {len(OPEN)}; len(CLOSED)= {len(CLOSED)}; COUNT = {self.COUNT}")
+            print("OPEN is now:", [str(s) for s in OPEN])
 
             # ---- robust goal test ----
             # Prefer module-level GOAL_TEST if present, otherwise try state.is_goal()
@@ -76,43 +90,49 @@ class ItrBFS:
             # else:
             #     raise AttributeError("No GOAL_TEST found in problem module and state has no is_goal() method.")
             # ---------------------------
-            if hasattr(S, "is_goal") and callable(S.is_goal):
-                is_goal = S.is_goal()
-            elif hasattr(self.Problem, "GOAL_TEST"):
-                is_goal = self.Problem.GOAL_TEST(S)
-            else:
-                raise AttributeError("No GOAL_TEST or is_goal() found.")
-    
-            if is_goal:
-                # call goal message function if exists
-                if hasattr(self.Problem, "GOAL_MESSAGE_FUNCTION") and callable(getattr(self.Problem, "GOAL_MESSAGE_FUNCTION")):
-                    print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
-                self.PATH = self.backtrace(S)
-                self.PATH_LENGTH = len(self.PATH) - 1
-                print("Solution path found:")
-                for p in self.PATH:
-                    print(p)
-                print("Length of solution path found:", self.PATH_LENGTH)
-                print("Number of states expanded:", self.COUNT)
-                print("Maximum length of open list:", self.MAX_OPEN_LENGTH)
-                return self.PATH
-            CLOSED.add(S)
-            self.COUNT += 1
-            
-            # if self.Problem.GOAL_TEST(S):
-            #     print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
-            #     self.PATH = [str(state) for state in self.backtrace(S)]
-            #     self.PATH_LENGTH = len(self.PATH) - 1
-            #     print(f"Length of solution path found: {self.PATH_LENGTH} edges")
-            #     return 
-            # self.COUNT += 1
 
+            # -------- commented out in recent itr ----------
+            # if hasattr(S, "is_goal") and callable(S.is_goal):
+            #     is_goal = S.is_goal()
+            # elif hasattr(self.Problem, "GOAL_TEST"):
+            #     is_goal = self.Problem.GOAL_TEST(S)
+            # else:
+            #     raise AttributeError("No GOAL_TEST or is_goal() found.")
+    
+            # if is_goal:
+            #     # call goal message function if exists
+            #     if hasattr(self.Problem, "GOAL_MESSAGE_FUNCTION") and callable(getattr(self.Problem, "GOAL_MESSAGE_FUNCTION")):
+            #         print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
+            #     self.PATH = self.backtrace(S)
+            #     self.PATH_LENGTH = len(self.PATH) - 1
+            #     print("Solution path found:")
+            #     for p in self.PATH:
+            #         print(p)
+            #     print("Length of solution path found:", self.PATH_LENGTH)
+            #     print("Number of states expanded:", self.COUNT)
+            #     print("Maximum length of open list:", self.MAX_OPEN_LENGTH)
+            #     return self.PATH
+            # CLOSED.add(S)
+            # self.COUNT += 1
+            # ---------------------------
+            
+            if self.Problem.GOAL_TEST(S):
+                print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
+                self.PATH = [str(state) for state in self.backtrace(S)]
+                self.PATH_LENGTH = len(self.PATH) - 1
+                print(f"Length of solution path found: {self.PATH_LENGTH} edges")
+                return 
+            self.COUNT += 1
+
+            L = []
             for op in self.Problem.OPERATORS:
                 if op.is_applicable(S):
                     new_state = op.apply(S)
-                    if new_state not in CLOSED and new_state not in OPEN:
+                    if (new_state not in CLOSED) and (new_state not in OPEN):
                         self.BACKLINKS[new_state] = S
-                        OPEN.append(new_state)
+                        # OPEN.append(new_state)
+            OPEN.extend(L)
+            printStateList("OPEN", OPEN)
 
         print("No solution found.")
         return None
@@ -121,12 +141,31 @@ class ItrBFS:
     def backtrace(self, S):
         """Reconstruct the path from goal back to start."""
         path = []
-        while S is not None:
+        while S:
             path.append(S)
             S = self.BACKLINKS[S]
         path.reverse()
         return path
+    
+def printStateList(lst_name, lst):
+    """
+    Prints the states in lst with name lst_name
+    """
+    print(f"{lst_name} is now: ", end='')
+    for s in lst[:-1]:
+        print(str(s), end=', ')
+    print(str(lst[-1]))
 
+def report(opn, closed, count):
+    """
+    Reports the current statistics:
+    Length of open list
+    Length of closed list
+    Number of states expanded
+    """
+    print(f"len(OPEN)= {len(opn)}", end='; ')
+    print(f"len(CLOSED)= {len(closed)}", end='; ')
+    print(f"COUNT = {count}")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
