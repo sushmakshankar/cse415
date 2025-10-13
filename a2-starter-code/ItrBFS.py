@@ -40,6 +40,7 @@ class ItrBFS:
         self.PATH = None
         self.PATH_LENGTH = None
         self.BACKLINKS = None
+        print("\nWelcome to ItrBFS")
 
     def runBFS(self):
         """Run Breadth-First Search."""
@@ -57,12 +58,17 @@ class ItrBFS:
         # CLOSED = set()
 
         initial_state = self.Problem.CREATE_INITIAL_STATE()
+        print("Initial State:")
+        print(initial_state)
+
         self.COUNT = 0 # new
         self.MAX_OPEN_LENGTH = 0 # new
         self.BACKLINKS = {} # new
 
         self.iterativeBFS(initial_state) # new
-        
+        print(f"Number of states expanded: {self.COUNT}")
+        print(f"Maximum length of the open list: {self.MAX_OPEN_LENGTH}")
+
 
             # ---- robust goal test ----
             # Prefer module-level GOAL_TEST if present, otherwise try state.is_goal()
@@ -176,9 +182,9 @@ def report(opn, closed, count):
     print(f"COUNT = {count}")
 
 if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: python ItrBFS.py ProblemName [OptionalParameter]")
+    if sys.argv == [''] or len(sys.argv) < 2:
+        problem_name = "TowersOfHanoi"
     else:
         problem_name = sys.argv[1]
-        bfs = ItrBFS(problem_name)
-        bfs.runBFS()
+    bfs = ItrBFS(problem_name)
+    bfs.runBFS()
