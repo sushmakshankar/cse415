@@ -1,6 +1,5 @@
 """ EightPuzzleWithManhattanDistances.py
 
-The total of the Manhattan distances for the 8 tiles puzzle.
 Partnership? (YES or NO): YES
 Student Name 1: Sushma Shankar
 Student Name 2: Deveshi Modi
@@ -8,41 +7,31 @@ Student Name 2: Deveshi Modi
 UW NetIDs: sshan854, dmodi
 CSE 415, Autumn 2025, University of Washington
 
-This code contains our implementation to find the total of the 
-Manhattan distances for the 8 tiles.
+This file augments EightPuzzle.py with heuristic information, 
+so that it can be used by an A* implementation. 
+The particular heuristic finds the total of the Manhattan distances 
+for the 8 tiles. 
 
 Usage:
 python3 AStar.py EightPuzzleWithManhattanDistances
 """
+from EightPuzzle import *
 
-import sys
-import importlib
-from PriorityQueue import My_Priority_Queue
+def h(s):
+    """We return an estimate of the total Manhattan distance
+    between s and the goal state."""
 
-class EightPuzzleWithManhattanDistances:
-    """
-    Class that implements the Manhattan distance heuristic for the 8 tiles puzzle.
-    """
+    total_distance = 0
+    goal_positions = {
+        1: (0, 0), 2: (0, 1), 3: (0, 2),
+        4: (1, 0), 5: (1, 1), 6: (1, 2),
+        7: (2, 0), 8: (2, 1)
+    }
 
-    def __init__(self, problem):
-        """ Initializing the ManhattanDistances class.
-        Please DO NOT modify this method. You may populate the required instance variables
-        in the other methods you implement.
-        """
-        self.Problem = importlib.import_module(problem)
-        self.COUNT = None  # Number of nodes expanded.
-        self.MAX_OPEN_LENGTH = None  # How long OPEN ever gets.
-        self.PATH = None  # List of states from initial to goal, along lowest-cost path.
-        self.PATH_LENGTH = None  # Number of states from initial to goal, along lowest-cost path.
-        self.TOTAL_COST = None  # Sum of edge costs along the lowest-cost path.
-        self.BACKLINKS = {}  # Predecessor links, used to recover the path.
-        self.OPEN = None  # OPEN list
-        self.CLOSED = None  # CLOSED list
-        self.VERBOSE = True  # Set to True to see progress; but it slows the search.
+    for index, tile in enumerate(s.state):
+        if tile != 0:  # Skip the blank tile
+            current_row, current_col = divmod(index, 3)
+            goal_row, goal_col = goal_positions[tile]
+            total_distance += abs(current_row - goal_row) + abs(current_col - goal_col)
 
-        # The value g(s) represents the cost along the best path found so far
-        # from the initial state to state s.
-        self.g = {}  # We will use a hash table to associate g values with states.
-        self.h = self.Problem.h  # Heuristic function
-
-        print("\nWelcome to Manhattan Distance")
+    return total_distance
