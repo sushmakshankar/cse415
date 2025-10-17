@@ -21,9 +21,13 @@ from EightPuzzle import *
 def h(s):
     """We return an estimate of the Hamming distance"""
     distance = 0
+    flat_state = []
+    for row in s.state:
+        flat_state.extend(row)
+
     goal_state = (1, 2, 3, 4, 5, 6, 7, 8, 0)
 
-    for index, tile in enumerate(s.state):
+    for index, tile in enumerate(flat_state):
         if tile != 0 and tile != goal_state[index]:  # Skip the blank tile
             distance += 1
 
