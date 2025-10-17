@@ -42,7 +42,7 @@ class AStar:
         # The value g(s) represents the cost along the best path found so far
         # from the initial state to state s.
         self.g = {}  # We will use a hash table to associate g values with states.
-        self.h = None  # Heuristic function
+        self.h = Problem.h  # Heuristic function
 
         print("\nWelcome to A*.")
 
@@ -78,7 +78,11 @@ class AStar:
         self.OPEN.insert(initial_state, 0)
         # STEP 1b. Assign g=0 to the start state.
         self.g[initial_state] = 0.0
+        # insert with f(n) = g(n) + h(n)
+        f_initial = self.g[initial_state] + self.h(initial_state)
+        self.OPEN.insert(initial_state, f_initial)
 
+        # step 2: if open is empty, output "done" and stop
         while len(self.OPEN) > 0:
             # print("Failure: No path found")
             # return
@@ -89,7 +93,7 @@ class AStar:
             if len(self.OPEN) > self.MAX_OPEN_LENGTH:
                 self.MAX_OPEN_LENGTH = len(self.OPEN)
 
-            # STEP 2. Take the node off OPEN with the lowest f(n)=g(n)+h(n)
+            # STEP 3. Take the node off OPEN with the lowest f(n)=g(n)+h(n)
             (S, P) = self.OPEN.delete_min()
             self.CLOSED.append(S)
 
@@ -104,39 +108,44 @@ class AStar:
                 return
             self.COUNT += 1
 
-            # STEP 3. Add n to CLOSED
-            self.CLOSED.append(S)
 
             # STEP 4. Expand node S, generating each of its successors S'
             gs = self.g[S]  # Save the cost of getting to S in a variable.
             for op in self.Problem.OPERATORS:
                 if op.is_applicable(S):
                     S_prime = op.apply(S)
-                    if S_prime in self.CLOSED:
-                        # print("Already have this state, in CLOSED. del ...")
-                        del S_prime
-                        continue
-                    cost_S_to_Sprime = S.edge_distance(S_prime)
-                    new_g = gs + cost_S_to_Sprime
+                    edge_cost = S.edge_distance(S_prime)
+                    new_g = gs + edge_cost
+                    new_f = new_g + self.h(S_prime) # f(n) = g(n) + h(n)
 
-                    if S_prime in self.OPEN:
-                        # print("new_state is in OPEN already, so...")
-                        P = self.OPEN[S_prime]
-                        if new_g < P:
-                            # print("New priority value is lower, so del older one")
-                            del self.OPEN[S_prime]
-                            self.OPEN.insert(S_prime, new_g)
+                    if S_prime in self.CLOSED:
+                        if new_g < self.g.get(S_prime, float('inf')):
+                            self.CLOSED.remove(S_prime)
+                            self.OPEN.insert(S_prime, new_f)
+                            self.BACKLINKS[S_prime] = S
+                            self.g[S_prime] = new_g
                         else:
                             # print("Older one is better, so del new_state")
                             del S_prime
-                            continue
+                        continue
+
+                    if S_prime in self.OPEN:
+                        old_f = self.OPEN[S_prime]
+                        if new_f < old_f:
+                            del self.OPEN[S_prime]
+                            self.OPEN.insert(S_prime, new_f)
+                            self.BACKLINKS[S_prime] = S
+                            self.g[S_prime] = new_g
+                        else:
+                            del S_prime
+                        continue
                     else:
-                        # print("new_state was not on OPEN at all, so just put it on.")
-                        self.OPEN.insert(S_prime, new_g)
-                    self.BACKLINKS[S_prime] = S
-                    self.g[S_prime] = new_g
+                        self.OPEN.insert(S_prime, new_f)
+                        self.BACKLINKS[S_prime] = S
+                        self.g[S_prime] = new_g
         
         return None
+    
     def backtrace(self, S):
         path = []
         while S:
