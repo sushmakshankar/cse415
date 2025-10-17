@@ -42,7 +42,7 @@ class AStar:
         # The value g(s) represents the cost along the best path found so far
         # from the initial state to state s.
         self.g = {}  # We will use a hash table to associate g values with states.
-        self.h = Problem.h  # Heuristic function
+        self.h = self.Problem.h  # Heuristic function
 
         print("\nWelcome to A*.")
 
