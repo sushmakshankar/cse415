@@ -98,9 +98,9 @@ class AStar:
             self.CLOSED.append(S)
 
             # Check if S is a goal state (handle both possible method names)
-            is_goal = S.is_goal() if hasattr(S, 'is_goal') else self.Problem.GOAL_TEST(S)
+            # is_goal = S.is_goal() if hasattr(S, 'is_goal') else self.Problem.GOAL_TEST(S)
 
-            if is_goal():
+            if self.Problem.GOAL_TEST(S):
                 print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
                 self.PATH = [str(state) for state in self.backtrace(S)]
                 self.PATH_LENGTH = len(self.PATH) - 1
@@ -129,7 +129,7 @@ class AStar:
                         else:
                             # print("Older one is better, so del new_state")
                             del S_prime
-                        continue
+                            continue
 
                     if S_prime in self.OPEN:
                         old_f = self.OPEN[S_prime]
