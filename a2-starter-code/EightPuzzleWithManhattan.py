@@ -1,4 +1,4 @@
-""" EightPuzzleWithManhattanDistances.py
+""" EightPuzzleWithManhattan.py
 
 Partnership? (YES or NO): YES
 Student Name 1: Sushma Shankar
@@ -13,7 +13,7 @@ The particular heuristic finds the total of the Manhattan distances
 for the 8 tiles. 
 
 Usage:
-python3 AStar.py EightPuzzleWithManhattanDistances
+python3 AStar.py EightPuzzleWithManhattan
 """
 from EightPuzzle import *
 
