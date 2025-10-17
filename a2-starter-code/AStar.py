@@ -98,9 +98,15 @@ class AStar:
             self.CLOSED.append(S)
 
             # Check if S is a goal state (handle both possible method names)
-            # is_goal = S.is_goal() if hasattr(S, 'is_goal') else self.Problem.GOAL_TEST(S)
+            if hasattr(S, 'is_goal'):
+                # EightPuzzle uses S.is_goal() method
+                is_goal = S.is_goal()
+            else:
+                # FranceWithCosts uses GOAL_TEST function
+                is_goal = self.Problem.GOAL_TEST(S)
 
-            if S.is_goal():
+            # if self.Problem.GOAL_TEST(S):
+            if is_goal:
                 print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
                 self.PATH = [str(state) for state in self.backtrace(S)]
                 self.PATH_LENGTH = len(self.PATH) - 1
