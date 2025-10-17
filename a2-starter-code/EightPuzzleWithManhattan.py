@@ -37,7 +37,7 @@ def h(s):
     # Calculate Manhattan distance for each tile
     for i in range(3):
         for j in range(3):
-            tile = s.state[i][j]
+            tile = s.b[i][j]
             # Skip the blank tile (0)
             if tile != 0:
                 # Get goal position for this tile
@@ -48,17 +48,3 @@ def h(s):
     
     return total_distance
     
-    # for i in range(9):
-    #     if s.state != 0:
-    #         current_row, current_col = divmod(i, 3)
-    #         # goal_row, goal_col = goal_positions[s.state[i]]
-    #         goal_row, goal_col = divmod(s[i] - 1, 3) 
-    #         total_distance += abs(current_row - goal_row) + abs(current_col - goal_col)
-
-    # for index, tile in enumerate(s.state):
-    #     if tile != 0:  # Skip the blank tile
-    #         current_row, current_col = divmod(index, 3)
-    #         goal_row, goal_col = goal_positions[tile]
-    #         total_distance += abs(current_row - goal_row) + abs(current_col - goal_col)
-
-    return total_distance
