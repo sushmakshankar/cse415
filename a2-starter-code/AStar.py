@@ -75,7 +75,6 @@ class AStar:
 
         # STEP 1a. Put the start state on a priority queue called OPEN
         self.OPEN = My_Priority_Queue()
-        # self.OPEN.insert(initial_state, 0)
         # STEP 1b. Assign g=0 to the start state.
         self.g[initial_state] = 0.0
         # insert with f(n) = g(n) + h(n)
@@ -84,11 +83,7 @@ class AStar:
 
         # step 2: if open is empty, output "done" and stop
         while len(self.OPEN) > 0:
-            # print("Failure: No path found")
-            # return
             if self.VERBOSE:
-                # print(f"\n{self.COUNT} states expanded so far.")
-                # print(f"Length of OPEN: {len(self.OPEN)}")
                 report(self.OPEN, self.CLOSED, self.COUNT)
             if len(self.OPEN) > self.MAX_OPEN_LENGTH:
                 self.MAX_OPEN_LENGTH = len(self.OPEN)
@@ -105,7 +100,6 @@ class AStar:
                 # FranceWithCosts uses GOAL_TEST function
                 is_goal = self.Problem.GOAL_TEST(S)
 
-            # if self.Problem.GOAL_TEST(S):
             if is_goal:
                 print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
                 self.PATH = [str(state) for state in self.backtrace(S)]
@@ -129,11 +123,7 @@ class AStar:
                     if S_prime in self.CLOSED:
                         if new_g < self.g.get(S_prime, float('inf')):
                             self.CLOSED.remove(S_prime)
-                            # self.OPEN.insert(S_prime, new_f)
-                            # self.BACKLINKS[S_prime] = S
-                            # self.g[S_prime] = new_g
                         else:
-                            # print("Older one is better, so del new_state")
                             del S_prime
                             continue
 
@@ -146,7 +136,6 @@ class AStar:
                             self.g[S_prime] = new_g
                         else:
                             del S_prime
-                        # continue
                     else:
                         self.OPEN.insert(S_prime, new_f)
                         self.BACKLINKS[S_prime] = S
