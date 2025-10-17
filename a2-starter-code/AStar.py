@@ -75,7 +75,7 @@ class AStar:
 
         # STEP 1a. Put the start state on a priority queue called OPEN
         self.OPEN = My_Priority_Queue()
-        self.OPEN.insert(initial_state, 0)
+        # self.OPEN.insert(initial_state, 0)
         # STEP 1b. Assign g=0 to the start state.
         self.g[initial_state] = 0.0
         # insert with f(n) = g(n) + h(n)
@@ -97,8 +97,10 @@ class AStar:
             (S, P) = self.OPEN.delete_min()
             self.CLOSED.append(S)
 
+            # Check if S is a goal state (handle both possible method names)
+            is_goal = S.is_goal() if hasattr(S, 'is_goal') else self.Problem.GOAL_TEST(S)
 
-            if S.is_goal():
+            if is_goal():
                 print(self.Problem.GOAL_MESSAGE_FUNCTION(S))
                 self.PATH = [str(state) for state in self.backtrace(S)]
                 self.PATH_LENGTH = len(self.PATH) - 1
@@ -121,9 +123,9 @@ class AStar:
                     if S_prime in self.CLOSED:
                         if new_g < self.g.get(S_prime, float('inf')):
                             self.CLOSED.remove(S_prime)
-                            self.OPEN.insert(S_prime, new_f)
-                            self.BACKLINKS[S_prime] = S
-                            self.g[S_prime] = new_g
+                            # self.OPEN.insert(S_prime, new_f)
+                            # self.BACKLINKS[S_prime] = S
+                            # self.g[S_prime] = new_g
                         else:
                             # print("Older one is better, so del new_state")
                             del S_prime
@@ -138,7 +140,7 @@ class AStar:
                             self.g[S_prime] = new_g
                         else:
                             del S_prime
-                        continue
+                        # continue
                     else:
                         self.OPEN.insert(S_prime, new_f)
                         self.BACKLINKS[S_prime] = S
