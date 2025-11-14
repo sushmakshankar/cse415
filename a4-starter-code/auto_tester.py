@@ -37,7 +37,7 @@ Then run the command:
 
 python autograder.py
   or on some systems:
-python3 autograder.py
+python3 auto_tester.py
 
 '''
 

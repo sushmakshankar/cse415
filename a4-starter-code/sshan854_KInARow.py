@@ -239,10 +239,109 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         # etc. 
  
     def static_eval(self, state, game_type=None):
-        print('calling static_eval. Its value needs to be computed!')
-        # Values should be higher when the states are better for X,
-        # lower when better for O.
-        return 0
+        self.num_static_evals_this_turn += 1
+        
+        if game_type is None:
+            game_type = self.current_game_type
+        
+        k = game_type.k
+        board = state.board
+        n_rows = len(board)
+        m_cols = len(board[0])
+        
+        score = 0
+        
+        # Check all possible lines for both players
+        for i in range(n_rows):
+            for j in range(m_cols):
+                if board[i][j] in ['X', 'O']:
+                    player = board[i][j]
+                    
+                    # Check horizontal
+                    score += self.evaluate_line(board, i, j, 0, 1, k, player, n_rows, m_cols)
+                    # Check vertical
+                    score += self.evaluate_line(board, i, j, 1, 0, k, player, n_rows, m_cols)
+                    # Check diagonal (down-right)
+                    score += self.evaluate_line(board, i, j, 1, 1, k, player, n_rows, m_cols)
+                    # Check diagonal (down-left)
+                    score += self.evaluate_line(board, i, j, 1, -1, k, player, n_rows, m_cols)
+        
+        return score
+    
+    def evaluate_line(self, board, row, col, d_row, d_col, k, player, n_rows, m_cols):
+        """Evaluate a line starting from (row, col) in direction (d_row, d_col)"""
+        count = 0
+        open_ends = 0
+        
+        # Count consecutive pieces
+        r, c = row, col
+        while (0 <= r < n_rows and 0 <= c < m_cols and 
+               board[r][c] == player):
+            count += 1
+            r += d_row
+            c += d_col
+        
+        if count == 0:
+            return 0
+        
+        # Check if ends are open
+        if 0 <= r < n_rows and 0 <= c < m_cols and board[r][c] == ' ':
+            open_ends += 1
+        
+        r, c = row - d_row, col - d_col
+        if 0 <= r < n_rows and 0 <= c < m_cols and board[r][c] == ' ':
+            open_ends += 1
+        
+        # Score based on count and openness
+        if count >= k:
+            score = 10000  # Winning position
+        elif count == k - 1:
+            score = 100 * open_ends
+        elif count == k - 2:
+            score = 10 * open_ends
+        else:
+            score = count * open_ends
+        
+        return score if player == 'X' else -score
+    
+    def get_legal_moves(self, state):
+        """Generate all legal moves from current state"""
+        moves = []
+        board = state.board
+        n_rows = len(board)
+        m_cols = len(board[0])
+        
+        for i in range(n_rows):
+            for j in range(m_cols):
+                if board[i][j] == ' ':
+                    new_state = State(old=state)
+                    new_state.board[i][j] = state.whose_move
+                    new_state.change_turn()
+                    moves.append(((i, j), new_state))
+        
+        return moves
+    
+    def is_terminal(self, state):
+        """Check if state is terminal (no more moves)"""
+        board = state.board
+        for row in board:
+            if ' ' in row:
+                return False
+        return True
+    
+    def generate_utterance(self, score):
+        """Generate a contextual utterance based on the game state"""
+        if not self.utterances_matter:
+            return "OK"
+        
+        if abs(score) > 1000:
+            return "This looks like a winning position!"
+        elif abs(score) > 100:
+            return "I'm feeling confident about this move."
+        elif abs(score) > 10:
+            return "A solid strategic choice."
+        else:
+            return "Let's see how this plays out."
  
 # OPTIONAL THINGS TO KEEP TRACK OF:
 
