@@ -49,9 +49,10 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         # self.start_time = None
 
     def introduce(self):
-        intro = '\nMy name is Templatus Skeletus.\n'+\
-            '"An instructor" made me.\n'+\
-            'Somebody please turn me into a real game-playing agent!\n'
+        intro = '\nMy name is {self.long_name}.\n'+\
+            '"I was created by {AUTHORS[0]}.\n'+\
+            'I use minimax with alpha-beta pruning to make strategic moves!\n'
+            # 'Somebody please turn me into a real game-playing agent!\n'+\
         if self.twin: intro += "By the way, I'm the TWIN.\n"
         return intro
 
@@ -92,11 +93,12 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
                   use_alpha_beta=True,
                   use_zobrist_hashing=False, max_ply=3,
                   special_static_eval_fn=None):
-        print("make_move has been called")
+        # print("make_move has been called")
 
         self.start_time = time.time()
         self.alpha_beta_cutoffs_this_turn = 0
         self.num_static_evals_this_turn = 0
+        self.special_eval_fn = special_static_eval_fn
         
         # Get all legal moves
         legal_moves = self.get_legal_moves(current_state)
@@ -104,40 +106,62 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         if not legal_moves:
             return [[None, current_state], "No legal moves available!"]
         
-                # Choose evaluation function
-        eval_fn = special_static_eval_fn if special_static_eval_fn else self.static_eval
-        
-        # Find best move using minimax
         best_move = None
-        best_score = float('-inf') if current_state.whose_move == 'X' else float('inf')
-        
-        for move, new_state in legal_moves:
-            # Check time limit
-            if time.time() - self.start_time > time_limit * 0.8:
-                break
-                
-            # Evaluate move
-            if use_alpha_beta:
-                score, _ = self.minimax(new_state, max_ply - 1, True,
-                                       float('-inf'), float('inf'), eval_fn)
-            else:
-                score, _ = self.minimax(new_state, max_ply - 1, False,
-                                       None, None, eval_fn)
+        best_state = None
+
+        if current_state.whose_move == 'X':
+            # Maximizing at root
+            best_score = float('-inf')
+            alpha = float('-inf')
+            beta = float('inf')
             
-            # Update best move
-            if current_state.whose_move == 'X':
+            for move, new_state in legal_moves:
+                if time.time() - self.start_time > time_limit * 0.8:
+                    break
+                
+                score = self.minimax(new_state, max_ply - 1, 
+                                    pruning=use_alpha_beta,
+                                    alpha=alpha, 
+                                    beta=beta)
+                
                 if score > best_score:
                     best_score = score
-                    best_move = (move, new_state)
-            else:
+                    best_move = move
+                    best_state = new_state
+                
+                if use_alpha_beta:
+                    alpha = max(alpha, score)
+                    if beta <= alpha:
+                        self.alpha_beta_cutoffs_this_turn += 1
+                        break
+        else:
+            # Minimizing at root
+            best_score = float('inf')
+            alpha = float('-inf')
+            beta = float('inf')
+            
+            for move, new_state in legal_moves:
+                if time.time() - self.start_time > time_limit * 0.8:
+                    break
+                
+                score = self.minimax(new_state, max_ply - 1, 
+                                    pruning=use_alpha_beta,
+                                    alpha=alpha, 
+                                    beta=beta)
+                
                 if score < best_score:
                     best_score = score
-                    best_move = (move, new_state)
+                    best_move = move
+                    best_state = new_state
+                
+                if use_alpha_beta:
+                    beta = min(beta, score)
+                    if beta <= alpha:
+                        self.alpha_beta_cutoffs_this_turn += 1
+                        break
         
         if best_move is None:
-            best_move = legal_moves[0]
-        
-        move, new_state = best_move
+            best_move, best_state = legal_moves[0]
         
         # Generate utterance
         utterance = self.generate_utterance(best_score)
@@ -148,9 +172,9 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
                     self.num_static_evals_this_turn,
                     self.zobrist_table_num_entries_this_turn,
                     self.zobrist_table_num_hits_this_turn]
-            return [[move, new_state] + stats, utterance]
+            return [[best_move, best_state] + stats, utterance]
         else:
-            return [[move, new_state], utterance]
+            return [[best_move, best_state], utterance]
         
         # # Here's a placeholder:
         # a_default_move = (0, 0) # This might be legal ONCE in a game,
@@ -171,66 +195,60 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
             depth_remaining,
             pruning=False,
             alpha=None,
-            beta=None,
-            eval_fn=None):
-        print("Calling minimax. We need to implement its body.")
+            beta=None):
+            # eval_fn=None):
 
         # Check time limit
         if self.start_time and time.time() - self.start_time > self.time_limit * 0.9:
-            return (self.static_eval(state) if eval_fn is None else eval_fn(state), None)
+            # return (self.static_eval(state) if eval_fn is None else eval_fn(state), None)
+            return self.evaluate_state(state)
         
         # Base case: depth limit or terminal state
-        if depth_remaining == 0 or self.is_terminal(state):
-            self.num_static_evals_this_turn += 1
-            return (self.static_eval(state) if eval_fn is None else eval_fn(state), None)
+        if depth_remaining <= 0 or self.is_terminal(state):
+            # self.num_static_evals_this_turn += 1
+            # return (self.static_eval(state) if eval_fn is None else eval_fn(state), None)
+            return self.evaluate_state(state)
         
         legal_moves = self.get_legal_moves(state)
         
         if not legal_moves:
-            self.num_static_evals_this_turn += 1
-            return (self.static_eval(state) if eval_fn is None else eval_fn(state), None)
+            # self.num_static_evals_this_turn += 1
+            # return (self.static_eval(state) if eval_fn is None else eval_fn(state), None)
+            return self.evaluate_state(state)
         
         # Maximizing player (X)
         if state.whose_move == 'X':
             max_score = float('-inf')
-            best_move = None
+            # best_move = None
             
             for move, new_state in legal_moves:
-                score, _ = self.minimax(new_state, depth_remaining - 1, pruning,
-                                       alpha, beta, eval_fn)
+                score = self.minimax(new_state, depth_remaining - 1, pruning, alpha, beta)
+                max_score = max(max_score, score)
                 
-                if score > max_score:
-                    max_score = score
-                    best_move = move
-                
-                if pruning and alpha is not None:
+                if pruning and alpha is not None and beta is not None:
                     alpha = max(alpha, score)
-                    if beta is not None and beta <= alpha:
+                    if beta <= alpha:
                         self.alpha_beta_cutoffs_this_turn += 1
-                        break
+                        break  # Beta cutoff
             
-            return (max_score, best_move)
+            return max_score
         
         # Minimizing player (O)
         else:
             min_score = float('inf')
-            best_move = None
+            # best_move = None
             
             for move, new_state in legal_moves:
-                score, _ = self.minimax(new_state, depth_remaining - 1, pruning,
-                                       alpha, beta, eval_fn)
+                score = self.minimax(new_state, depth_remaining - 1, pruning, alpha, beta)
+                min_score = min(min_score, score)
                 
-                if score < min_score:
-                    min_score = score
-                    best_move = move
-                
-                if pruning and beta is not None:
+                if pruning and alpha is not None and beta is not None:
                     beta = min(beta, score)
-                    if alpha is not None and beta <= alpha:
+                    if beta <= alpha:
                         self.alpha_beta_cutoffs_this_turn += 1
-                        break
+                        break  # Alpha cutoff
             
-            return (min_score, best_move)
+            return min_score
     
         # return [default_score, "my own optional stuff", "more of my stuff"]
         # Only the score is required here but other stuff can be returned
@@ -238,8 +256,16 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         # back from recursive calls that might be used in your utterances,
         # etc. 
  
-    def static_eval(self, state, game_type=None):
+    def evaluate_state(self, state):
+        """Wrapper for evaluation - uses special function if provided"""
         self.num_static_evals_this_turn += 1
+        if self.special_eval_fn:
+            return self.special_eval_fn(state)
+        else:
+            return self.static_eval(state)
+        
+    def static_eval(self, state, game_type=None):
+        # self.num_static_evals_this_turn += 1
         
         if game_type is None:
             game_type = self.current_game_type
@@ -249,68 +275,101 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         n_rows = len(board)
         m_cols = len(board[0])
         
+        # Checking for immediate wins
         score = 0
+
+        directions = [(0, 1), (1, 0), (1, 1), (1, -1)]  # right, down, down-right, down-left
         
         # Check all possible lines for both players
         for i in range(n_rows):
             for j in range(m_cols):
-                if board[i][j] in ['X', 'O']:
-                    player = board[i][j]
+                for d_row, d_col in directions:
+                    # Count X's in this direction
+                    x_count, x_open = self.count_line(board, i, j, d_row, d_col, 'X', k, n_rows, m_cols)
+                    if x_count > 0:
+                        x_score = self.score_threat(x_count, x_open, k)
+                        score += x_score
                     
-                    # Check horizontal
-                    score += self.evaluate_line(board, i, j, 0, 1, k, player, n_rows, m_cols)
-                    # Check vertical
-                    score += self.evaluate_line(board, i, j, 1, 0, k, player, n_rows, m_cols)
-                    # Check diagonal (down-right)
-                    score += self.evaluate_line(board, i, j, 1, 1, k, player, n_rows, m_cols)
-                    # Check diagonal (down-left)
-                    score += self.evaluate_line(board, i, j, 1, -1, k, player, n_rows, m_cols)
+                    # Count O's in this direction
+                    o_count, o_open = self.count_line(board, i, j, d_row, d_col, 'O', k, n_rows, m_cols)
+                    if o_count > 0:
+                        o_score = self.score_threat(o_count, o_open, k)
+                        score -= o_score
         
         return score
     
-    def evaluate_line(self, board, row, col, d_row, d_col, k, player, n_rows, m_cols):
-        """Evaluate a line starting from (row, col) in direction (d_row, d_col)"""
-        count = 0
-        open_ends = 0
+    def count_line(self, board, row, col, d_row, d_col, player, k, n_rows, m_cols):
+        """Count consecutive pieces and open ends for a player in a given direction"""
+        # Only count from starting positions to avoid double counting
+        if board[row][col] != player:
+            return 0, 0
         
-        # Count consecutive pieces
+        count = 0
         r, c = row, col
+        
+        # Count consecutive pieces in positive direction
         while (0 <= r < n_rows and 0 <= c < m_cols and 
                board[r][c] == player):
             count += 1
+            if count >= k:
+                break
             r += d_row
             c += d_col
         
         if count == 0:
-            return 0
+            return 0, 0
         
-        # Check if ends are open
-        if 0 <= r < n_rows and 0 <= c < m_cols and board[r][c] == ' ':
+        # Count open ends
+        open_ends = 0
+        
+        # Check positive end
+        end_r, end_c = row + count * d_row, col + count * d_col
+        if 0 <= end_r < n_rows and 0 <= end_c < m_cols and board[end_r][end_c] == ' ':
             open_ends += 1
         
-        r, c = row - d_row, col - d_col
-        if 0 <= r < n_rows and 0 <= c < m_cols and board[r][c] == ' ':
+        # Check negative end
+        start_r, start_c = row - d_row, col - d_col
+        if 0 <= start_r < n_rows and 0 <= start_c < m_cols and board[start_r][start_c] == ' ':
             open_ends += 1
         
-        # Score based on count and openness
+        return count, open_ends
+    
+    def score_threat(self, count, open_ends, k):
+        """Score a threat based on length and openness"""
         if count >= k:
-            score = 10000  # Winning position
+            return 100000  # Winning position
         elif count == k - 1:
-            score = 100 * open_ends
+            if open_ends == 2:
+                return 5000  # Unstoppable threat
+            elif open_ends == 1:
+                return 500   # Blockable threat
+            else:
+                return 0     # Blocked threat
         elif count == k - 2:
-            score = 10 * open_ends
+            if open_ends == 2:
+                return 200
+            elif open_ends == 1:
+                return 20
+            else:
+                return 0
+        elif count == k - 3:
+            if open_ends == 2:
+                return 50
+            elif open_ends == 1:
+                return 5
+            else:
+                return 0
         else:
-            score = count * open_ends
-        
-        return score if player == 'X' else -score
+            return count * open_ends
     
     def get_legal_moves(self, state):
-        """Generate all legal moves from current state"""
+        """Generate all legal moves from current state IN ORDER (row by row, column by column)"""
         moves = []
         board = state.board
         n_rows = len(board)
         m_cols = len(board[0])
         
+        # Generate moves in order for autograder compatibility
         for i in range(n_rows):
             for j in range(m_cols):
                 if board[i][j] == ' ':
