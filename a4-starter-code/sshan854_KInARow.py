@@ -368,15 +368,13 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         return True
     
     def generate_utterance(self, score, old_state, new_state, opponent_remark):
-        """Generate funny New Yorker utterances with attitude"""
         
-        # In competition mode, keep it simple
         if not self.utterances_matter or self.playing_mode == KAgent.COMPETITION:
             return "OK"
         
         utterances = []
         
-        # 1. DIDACTIC with NY ATTITUDE: Teach about search statistics
+        # 1. Teach about search statistics
         if self.turn_count % 3 == 1 and self.alpha_beta_cutoffs_this_turn > 0:
             utterances.append(
                 f"Boom! Alpha-beta pruning just saved me {self.alpha_beta_cutoffs_this_turn} branches. "
@@ -384,7 +382,7 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
                 f"Only checked {self.num_static_evals_this_turn} positions."
             )
         
-        # 2. GAME-STATE-SPECIFIC with NY SASS
+        # 2. GAME-STATE-SPECIFIC
         if abs(score) > 10000:
             if (score > 0 and self.playing == 'X') or (score < 0 and self.playing == 'O'):
                 utterances.append("BADA BING! I got you right where I want ya! This game's over faster than a $1 pizza slice!")
@@ -398,7 +396,7 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         elif abs(score) < 10:
             utterances.append("This is tighter than rush hour on the L train! Every move counts, capisce?")
         
-        # 3. PERSONA-SPECIFIC: NY References
+        # 3. PERSONA-SPECIFIC:
         k = self.current_game_type.k
         if self.turn_count == 1:
             utterances.append(f"Aight, let's get this bread! Looking for {k} in a row - easier than finding a decent bagel in Manhattan!")
@@ -410,7 +408,7 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
                 f"I'm workin' harder than a hot dog vendor at a Yankees game!"
             )
         
-        # 4. RESPONSIVE: React to opponent with NY ATTITUDE
+        # 4. RESPONSIVE: 
         if opponent_remark and len(self.opponent_past_utterances) > 0:
             last_remark = opponent_remark.lower()
             if 'random' in last_remark:
@@ -422,13 +420,13 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
             elif 'hello' in last_remark or 'hi' in last_remark:
                 utterances.append("Yo! What's good? Let's play some K-in-a-Row!")
         
-        # 5. OBSERVANT: NY-style observations
+        # 5. OBSERVANT: 
         empty_count = sum(1 for row in new_state.board for cell in row if cell == ' ')
         total_cells = len(new_state.board) * len(new_state.board[0])
         if empty_count < total_cells * 0.3:
             utterances.append("Board's fillin' up like Penn Station at 5 PM! Endgame time, baby!")
         
-        # 6. EDUCATIONAL with NY FLAVOR
+        # 6. EDUCATIONAL
         if self.turn_count == 2:
             utterances.append(
                 f"Lemme break it down for ya - I check every {k}-length window on this board. "
@@ -453,7 +451,6 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
             import random
             return random.choice(ny_oneliners)
         
-        # Combine 1-2 utterances
         if len(utterances) == 1:
             return utterances[0]
         else:
