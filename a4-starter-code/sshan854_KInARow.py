@@ -38,8 +38,8 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         self.playing = "don't know yet"
         self.alpha_beta_cutoffs_this_turn = 0
         self.num_static_evals_this_turn = 0
-        self.zobrist_table_num_entries_this_turn = -1
-        self.zobrist_table_num_hits_this_turn = -1
+        self.zobrist_table_num_entries_this_turn = 0
+        self.zobrist_table_num_hits_this_turn = 0
         self.current_game_type = None
         self.playing_mode = KAgent.DEMO
         self.opponent_nickname = None
@@ -55,6 +55,18 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         self.total_cutoffs = 0
         self.total_evals = 0
 
+        # Zobrist hashing
+        self.zobrist_table = {}
+        self.zobrist_keys = None  # Will be initialized in prepare
+        self.zobrist_writes = 0
+        self.zobrist_read_attempts = 0
+        self.zobrist_successful_reads = 0
+        
+        # Move ordering instrumentation
+        self.use_move_ordering = True
+        self.cutoffs_with_ordering = 0
+        self.cutoffs_without_ordering = 0
+
     def introduce(self):
         intro = f'\nEy, I\'m {self.long_name}, and I\'m walkin\' here!\n'
         intro += f'Born and raised in the five boroughs, trained in the school of hard knocks and minimax algorithms.\n'
@@ -67,40 +79,51 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
 
     # Receive and acknowledge information about the game from
     # the game master:
-    def prepare(
-        self,
-        game_type,
-        what_side_to_play,
-        opponent_nickname,
-        expected_time_per_move = 0.1, # Time limits can be
-                                      # changed mid-game by the game master.
-
-        utterances_matter=True):      # If False, just return 'OK' for each utterance,
-                                      # or something simple and quick to compute
-                                      # and do not import any LLM or special APIs.
-                                      # During the tournament, this will be False..
-    #    if utterances_matter:
-    #        pass
-    #        # Optionally, import your LLM API here.
-    #        # Then you can use it to help create utterances.
-           
-    #    # Write code to save the relevant information in variables
-    #    # local to this instance of the agent.
-    #    # Game-type info can be in global variables.
-    #    print("Change this to return 'OK' when ready to test the method.")
-    #    return "Not-OK"
-
+    def prepare(self, game_type, what_side_to_play, opponent_nickname,
+                expected_time_per_move=0.1, utterances_matter=True):
+    # Time limits can be changed mid-game by the game master.
+    # If False, just return 'OK' for each utterance,
+    # or something simple and quick to compute
+    # and do not import any LLM or special APIs.
         self.current_game_type = game_type
         self.playing = what_side_to_play
         self.opponent_nickname = opponent_nickname
         self.time_limit = expected_time_per_move
         self.utterances_matter = utterances_matter
+        self.initialize_zobrist_keys(game_type)
         return "OK"
    
-    # The core of your agent's ability should be implemented here:             
+    def initialize_zobrist_keys(self, game_type):
+        """Initialize random Zobrist hash keys for each board position and piece"""
+        import random
+        random.seed(42) 
+        
+        n_rows = game_type.n
+        m_cols = game_type.m
+        
+        # random 64-bit integers for each position and piece type
+        self.zobrist_keys = {}
+        for i in range(n_rows):
+            for j in range(m_cols):
+                self.zobrist_keys[(i, j, 'X')] = random.getrandbits(64)
+                self.zobrist_keys[(i, j, 'O')] = random.getrandbits(64)
+                self.zobrist_keys[(i, j, '-')] = random.getrandbits(64)
+    
+    def compute_zobrist_hash(self, state):
+        """Compute Zobrist hash for a given state"""
+        hash_value = 0
+        board = state.board
+        
+        for i in range(len(board)):
+            for j in range(len(board[0])):
+                piece = board[i][j]
+                if piece in ['X', 'O', '-']:
+                    hash_value ^= self.zobrist_keys[(i, j, piece)]
+        
+        return hash_value
+
     def make_move(self, current_state, current_remark, time_limit=1000,
-                  use_alpha_beta=True,
-                  use_zobrist_hashing=False, max_ply=3,
+                  use_alpha_beta=True, use_zobrist_hashing=False, max_ply=3,
                   special_static_eval_fn=None):
         # print("make_move has been called")
 
@@ -109,6 +132,11 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         self.num_static_evals_this_turn = 0
         self.special_eval_fn = special_static_eval_fn
         self.turn_count += 1
+
+        self.zobrist_table_num_entries_this_turn = len(self.zobrist_table)
+        self.zobrist_table_num_hits_this_turn = 0
+        turn_start_writes = self.zobrist_writes
+        turn_start_reads = self.zobrist_read_attempts
         
         # Track opponent's remark
         if current_remark:
@@ -182,6 +210,9 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         self.total_cutoffs += self.alpha_beta_cutoffs_this_turn
         self.total_evals += self.num_static_evals_this_turn
         
+        # Calculate per-turn Zobrist stats
+        self.zobrist_table_num_hits_this_turn = self.zobrist_successful_reads - (turn_start_reads - turn_start_writes)
+        
         # Generate utterance
         utterance = self.generate_utterance(best_score, current_state, best_state, current_remark)
         self.my_past_utterances.append(utterance)
@@ -196,33 +227,91 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         else:
             return [[best_move, best_state], utterance]
 
+    def order_moves(self, legal_moves, current_state, use_zobrist):
+        """Order moves by evaluation score to improve alpha-beta pruning"""
+        move_scores = []
+        
+        for move, new_state in legal_moves:
+            # Check Zobrist table first if enabled
+            if use_zobrist:
+                hash_val = self.compute_zobrist_hash(new_state)
+                if hash_val in self.zobrist_table:
+                    score = self.zobrist_table[hash_val]
+                    move_scores.append((score, move, new_state))
+                    continue
+            
+            # Otherwise do shallow evaluation
+            score = self.evaluate_state(new_state)
+            move_scores.append((score, move, new_state))
+        
+        # Sort based on whose turn it is
+        if current_state.whose_move == 'X':
+            # Maximizing: sort descending (best first)
+            move_scores.sort(reverse=True, key=lambda x: x[0])
+        else:
+            # Minimizing: sort ascending (best first)
+            move_scores.sort(key=lambda x: x[0])
+        
+        # Return ordered moves (without scores)
+        return [(move, state) for score, move, state in move_scores]
+    
+
     # The main adversarial search function:
-    def minimax(self,
-            state,
-            depth_remaining,
-            pruning=False,
-            alpha=None,
-            beta=None):
+    def minimax(self, state, depth_remaining, pruning=False,
+                alpha=None, beta=None, use_zobrist=False):
 
         # Check time limit
         if self.start_time and time.time() - self.start_time > self.time_limit * 0.9:
             return self.evaluate_state(state)
         
+        if use_zobrist:
+            hash_val = self.compute_zobrist_hash(state)
+            self.zobrist_read_attempts += 1
+            
+            if hash_val in self.zobrist_table:
+                cached_data = self.zobrist_table[hash_val]
+                # Check if cached depth is sufficient
+                if cached_data['depth'] >= depth_remaining:
+                    self.zobrist_successful_reads += 1
+                    return cached_data['score']
+        
         # Base case: depth limit or terminal state
         if depth_remaining <= 0 or self.is_terminal(state):
-            return self.evaluate_state(state)
+            score = self.evaluate_state(state)
+            # Store in Zobrist table if enabled
+            if use_zobrist:
+                hash_val = self.compute_zobrist_hash(state)
+                self.zobrist_table[hash_val] = {
+                    'score': score,
+                    'depth': depth_remaining
+                }
+                self.zobrist_writes += 1
+            
+            return score
         
         legal_moves = self.get_legal_moves(state)
         
         if not legal_moves:
-            return self.evaluate_state(state)
+            score = self.evaluate_state(state)
+            if use_zobrist:
+                hash_val = self.compute_zobrist_hash(state)
+                self.zobrist_table[hash_val] = {
+                    'score': score,
+                    'depth': depth_remaining
+                }
+                self.zobrist_writes += 1
+            return score
+        
+        # ORDER MOVES for better pruning
+        if self.use_move_ordering and pruning:
+            legal_moves = self.order_moves_in_search(legal_moves, state, use_zobrist)
         
         # Maximizing player (X)
         if state.whose_move == 'X':
             max_score = float('-inf')
             
             for move, new_state in legal_moves:
-                score = self.minimax(new_state, depth_remaining - 1, pruning, alpha, beta)
+                score = self.minimax(new_state, depth_remaining - 1, pruning, alpha, beta, use_zobrist)
                 max_score = max(max_score, score)
                 
                 if pruning and alpha is not None and beta is not None:
@@ -231,6 +320,14 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
                         self.alpha_beta_cutoffs_this_turn += 1
                         break  # Beta cutoff
             
+            if use_zobrist:
+                hash_val = self.compute_zobrist_hash(state)
+                self.zobrist_table[hash_val] = {
+                    'score': max_score,
+                    'depth': depth_remaining
+                }
+                self.zobrist_writes += 1
+
             return max_score
         
         # Minimizing player (O)
@@ -238,7 +335,7 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
             min_score = float('inf')
             
             for move, new_state in legal_moves:
-                score = self.minimax(new_state, depth_remaining - 1, pruning, alpha, beta)
+                score = self.minimax(new_state, depth_remaining - 1, pruning, alpha, beta, use_zobrist)
                 min_score = min(min_score, score)
                 
                 if pruning and alpha is not None and beta is not None:
@@ -247,13 +344,48 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
                         self.alpha_beta_cutoffs_this_turn += 1
                         break  # Alpha cutoff
             
+            if use_zobrist:
+                hash_val = self.compute_zobrist_hash(state)
+                self.zobrist_table[hash_val] = {
+                    'score': min_score,
+                    'depth': depth_remaining
+                }
+                self.zobrist_writes += 1
+                
             return min_score
     
-        # return [default_score, "my own optional stuff", "more of my stuff"]
-        # Only the score is required here but other stuff can be returned
-        # in the list, after the score, in case you want to pass info
-        # back from recursive calls that might be used in your utterances,
-        # etc. 
+    def order_moves_in_search(self, legal_moves, current_state, use_zobrist):
+        """Order moves during search for better pruning (lighter weight than root ordering)"""
+        move_scores = []
+        
+        for move, new_state in legal_moves:
+            score = None
+            
+            # Check Zobrist table first if enabled
+            if use_zobrist:
+                hash_val = self.compute_zobrist_hash(new_state)
+                if hash_val in self.zobrist_table:
+                    score = self.zobrist_table[hash_val]['score']
+            
+            # If not in table, use quick heuristic (don't do full eval to save time)
+            if score is None:
+                # Simple heuristic: count pieces near center
+                board = new_state.board
+                center_r = len(board) // 2
+                center_c = len(board[0]) // 2
+                move_r, move_c = move
+                # Prefer center moves
+                score = -abs(move_r - center_r) - abs(move_c - center_c)
+            
+            move_scores.append((score, move, new_state))
+        
+        # Sort based on whose turn it is
+        if current_state.whose_move == 'X':
+            move_scores.sort(reverse=True, key=lambda x: x[0])
+        else:
+            move_scores.sort(key=lambda x: x[0])
+        
+        return [(move, state) for score, move, state in move_scores]
  
     def evaluate_state(self, state):
         """Wrapper for evaluation - uses special function if provided"""
@@ -455,6 +587,34 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
             return utterances[0]
         else:
             return utterances[0] + " " + (utterances[1] if len(utterances) > 1 else "")
+        
+    def print_statistics(self):
+        """Print comprehensive statistics for reporting"""
+        print("\n" + "="*60)
+        print("BROOKLYN BRAIN - PERFORMANCE STATISTICS")
+        print("="*60)
+        
+        print("\n--- ALPHA-BETA PRUNING ---")
+        print(f"Total alpha-beta cutoffs: {self.total_cutoffs}")
+        print(f"Total positions evaluated: {self.total_evals}")
+        if self.total_evals > 0:
+            efficiency = (self.total_cutoffs / (self.total_cutoffs + self.total_evals)) * 100
+            print(f"Pruning efficiency: {efficiency:.1f}%")
+        
+        print("\n--- ZOBRIST HASHING ---")
+        print(f"Total hash table entries: {len(self.zobrist_table)}")
+        print(f"Total writes to hash table: {self.zobrist_writes}")
+        print(f"Total read attempts: {self.zobrist_read_attempts}")
+        print(f"Successful reads (cache hits): {self.zobrist_successful_reads}")
+        if self.zobrist_read_attempts > 0:
+            hit_rate = (self.zobrist_successful_reads / self.zobrist_read_attempts) * 100
+            print(f"Cache hit rate: {hit_rate:.1f}%")
+        
+        print("\n--- MOVE ORDERING ---")
+        print(f"Move ordering enabled: {self.use_move_ordering}")
+        print(f"This improves alpha-beta cutoff rate by examining promising moves first")
+        
+        print("\n" + "="*60)
  
 # OPTIONAL THINGS TO KEEP TRACK OF:
 
