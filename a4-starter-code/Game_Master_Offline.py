@@ -185,7 +185,8 @@ def test():
     # which is a "twin".
 
     import sshan854_KInARow as h
-    import saachid_KInARow as opponent_agent 
+    import saachid_KInARow as opponent_agent
+     # Create the agents.
     px = h.OurAgent()
     # po = h.OurAgent(twin=True)
     po = opponent_agent.OurAgent()
