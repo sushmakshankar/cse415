@@ -184,10 +184,11 @@ def test():
     # If using only 1, create 2 instances of it, one of
     # which is a "twin".
 
-    #import yourUWNetID_KInARow as h
-    import RandomPlayer as h
+    import sshan854_KInARow as h
+    import saachid_KInARow as opponent_agent 
     px = h.OurAgent()
-    po = h.OurAgent(twin=True)
+    # po = h.OurAgent(twin=True)
+    po = opponent_agent.OurAgent()
     set_players(px, po)
     print("Players are set.")
     print("Now let's run the game.")
