@@ -265,7 +265,7 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
             return self.static_eval(state)
         
     def static_eval(self, state, game_type=None):
-        # self.num_static_evals_this_turn += 1
+        """Evaluate the desirability of a state"""
         
         if game_type is None:
             game_type = self.current_game_type
@@ -275,12 +275,11 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         n_rows = len(board)
         m_cols = len(board[0])
         
-        # Checking for immediate wins
         score = 0
-
-        directions = [(0, 1), (1, 0), (1, 1), (1, -1)]  # right, down, down-right, down-left
         
-        # Check all possible lines for both players
+        # Evaluate all possible lines
+        directions = [(0, 1), (1, 0), (1, 1), (1, -1)]  # horizontal, vertical, diag-right, diag-left
+        
         for i in range(n_rows):
             for j in range(m_cols):
                 for d_row, d_col in directions:
@@ -297,6 +296,7 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
                         score -= o_score
         
         return score
+    
     
     def count_line(self, board, row, col, d_row, d_col, player, k, n_rows, m_cols):
         """Count consecutive pieces and open ends for a player in a given direction"""
