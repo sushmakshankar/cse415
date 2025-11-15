@@ -66,6 +66,14 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         self.use_move_ordering = True
         self.cutoffs_with_ordering = 0
         self.cutoffs_without_ordering = 0
+        
+        # Statistics for last move explanation
+        self.last_move_coords = None
+        self.last_move_value = None
+        self.last_move_time = None
+        
+        # Game history for story feature
+        self.eval_history = []  # Track evaluation scores over time
 
     def introduce(self):
         intro = f'\nEy, I\'m {self.long_name}, and I\'m walkin\' here!\n'
@@ -87,6 +95,14 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         self.time_limit = expected_time_per_move
         self.utterances_matter = utterances_matter
         self.initialize_zobrist_keys(game_type)
+        
+        # Reset statistics for new game
+        self.last_move_coords = None
+        self.last_move_value = None
+        self.last_move_time = None
+        self.turn_count = 0
+        self.eval_history = []
+        
         return "OK"
    
     def initialize_zobrist_keys(self, game_type):
@@ -207,10 +223,19 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         if best_move is None:
             best_move, best_state = legal_moves[0]
         
-        # Update statistics
+        # Calculate time spent on this move
+        move_end_time = time.time()
+        self.last_move_time = move_end_time - self.start_time
+        
+        # Update statistics for last move explanation
+        self.last_move_coords = best_move
+        self.last_move_value = best_score
         self.last_eval_score = best_score
         self.total_cutoffs += self.alpha_beta_cutoffs_this_turn
         self.total_evals += self.num_static_evals_this_turn
+        
+        # Track evaluation history for story feature
+        self.eval_history.append(best_score)
         
         # Calculate per-turn Zobrist stats
         self.zobrist_table_num_hits_this_turn = self.zobrist_successful_reads - (turn_start_reads - turn_start_writes)
@@ -500,6 +525,14 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         if not self.utterances_matter or self.playing_mode == KAgent.COMPETITION:
             return "OK"
         
+        # Check for special requests
+        if opponent_remark:
+            text = opponent_remark.lower()
+            if "tell me how you did that" in text:
+                return self.explain_last_move()
+            if "what's your take on the game so far" in text or "whats your take on the game so far" in text:
+                return self.tell_game_story()
+        
         utterances = []
         
         # 1. DIDACTIC with NY ATTITUDE: Teach about search statistics
@@ -584,4 +617,38 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
             return utterances[0]
         else:
             return utterances[0] + " " + (utterances[1] if len(utterances) > 1 else "")
+        
+    def print_statistics(self):
+        """Print comprehensive statistics for reporting"""
+        print("\n" + "="*60)
+        print("BROOKLYN BRAIN - PERFORMANCE STATISTICS")
+        print("="*60)
+        
+        print("\n--- ALPHA-BETA PRUNING ---")
+        print(f"Total alpha-beta cutoffs: {self.total_cutoffs}")
+        print(f"Total positions evaluated: {self.total_evals}")
+        if self.total_evals > 0:
+            efficiency = (self.total_cutoffs / (self.total_cutoffs + self.total_evals)) * 100
+            print(f"Pruning efficiency: {efficiency:.1f}%")
+        
+        print("\n--- ZOBRIST HASHING ---")
+        print(f"Total hash table entries: {len(self.zobrist_table)}")
+        print(f"Total writes to hash table: {self.zobrist_writes}")
+        print(f"Total read attempts: {self.zobrist_read_attempts}")
+        print(f"Successful reads (cache hits): {self.zobrist_successful_reads}")
+        if self.zobrist_read_attempts > 0:
+            hit_rate = (self.zobrist_successful_reads / self.zobrist_read_attempts) * 100
+            print(f"Cache hit rate: {hit_rate:.1f}%")
+        
+        print("\n--- MOVE ORDERING ---")
+        print(f"Move ordering enabled: {self.use_move_ordering}")
+        print(f"This improves alpha-beta cutoff rate by examining promising moves first")
+        
+        print("\n" + "="*60)
  
+# OPTIONAL THINGS TO KEEP TRACK OF:
+
+#  WHO_MY_OPPONENT_PLAYS = other(WHO_I_PLAY)
+#  OPPONENT_PAST_UTTERANCES = []
+#  UTTERANCE_COUNT = 0
+#  REPEAT_COUNT = 0 or a table of these if you are reusing different utterances
