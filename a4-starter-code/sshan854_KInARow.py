@@ -66,6 +66,14 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         self.use_move_ordering = True
         self.cutoffs_with_ordering = 0
         self.cutoffs_without_ordering = 0
+        
+        # Statistics for last move explanation
+        self.last_move_coords = None
+        self.last_move_value = None
+        self.last_move_time = None
+        
+        # Game history for story feature
+        self.eval_history = []  # Track evaluation scores over time
 
     def introduce(self):
         intro = f'\nEy, I\'m {self.long_name}, and I\'m walkin\' here!\n'
@@ -91,6 +99,14 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         self.time_limit = expected_time_per_move
         self.utterances_matter = utterances_matter
         self.initialize_zobrist_keys(game_type)
+        
+        # Reset statistics for new game
+        self.last_move_coords = None
+        self.last_move_value = None
+        self.last_move_time = None
+        self.turn_count = 0
+        self.eval_history = []
+        
         return "OK"
    
     def initialize_zobrist_keys(self, game_type):
@@ -205,10 +221,19 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         if best_move is None:
             best_move, best_state = legal_moves[0]
         
-        # Update statistics
+        # Calculate time spent on this move
+        move_end_time = time.time()
+        self.last_move_time = move_end_time - self.start_time
+        
+        # Update statistics for last move explanation
+        self.last_move_coords = best_move
+        self.last_move_value = best_score
         self.last_eval_score = best_score
         self.total_cutoffs += self.alpha_beta_cutoffs_this_turn
         self.total_evals += self.num_static_evals_this_turn
+        
+        # Track evaluation history for story feature
+        self.eval_history.append(best_score)
         
         # Calculate per-turn Zobrist stats
         self.zobrist_table_num_hits_this_turn = self.zobrist_successful_reads - (turn_start_reads - turn_start_writes)
@@ -504,6 +529,14 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         if not self.utterances_matter or self.playing_mode == KAgent.COMPETITION:
             return "OK"
         
+        # Check for special requests
+        if opponent_remark:
+            text = opponent_remark.lower()
+            if "tell me how you did that" in text:
+                return self.explain_last_move()
+            if "what's your take on the game so far" in text or "whats your take on the game so far" in text:
+                return self.tell_game_story()
+        
         utterances = []
         
         # 1. Teach about search statistics
@@ -587,6 +620,151 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
             return utterances[0]
         else:
             return utterances[0] + " " + (utterances[1] if len(utterances) > 1 else "")
+    
+    def explain_last_move(self):
+        """
+        When opponent says 'Tell me how you did that',
+        provide a thorough explanation of real statistics about the last move computation.
+        """
+        if self.last_move_coords is None:
+            return f"{self.nickname}: Yo, I haven't made a move yet! Give me a second to actually think, capisce?"
+        
+        # Gather all statistics
+        evals = self.num_static_evals_this_turn
+        cutoffs = self.alpha_beta_cutoffs_this_turn
+        entries = self.zobrist_table_num_entries_this_turn
+        hits = self.zobrist_table_num_hits_this_turn
+        t = self.last_move_time if self.last_move_time is not None else 0.0
+        score = self.last_move_value if self.last_move_value is not None else 0.0
+        move = self.last_move_coords
+        
+        # Calculate efficiency metrics
+        total_nodes = evals + cutoffs if (evals + cutoffs) > 0 else 1
+        pruning_efficiency = (cutoffs / total_nodes * 100) if total_nodes > 0 else 0.0
+        zobrist_hit_rate = (hits / entries * 100) if entries > 0 and hits >= 0 else 0.0
+        
+        # Build comprehensive explanation
+        explanation = f"{self.nickname}: Alright, listen up! Here's the real deal on my last move:\n\n"
+        
+        # Move and evaluation
+        explanation += f"📍 **Move Selected**: {move}\n"
+        explanation += f"📊 **Position Evaluation**: {score:.2f} (from my perspective)\n"
+        explanation += f"⏱️ **Computation Time**: {t:.4f} seconds\n\n"
+        
+        # Search statistics
+        explanation += f"🔍 **Search Statistics**:\n"
+        explanation += f"   • States evaluated statically: {evals}\n"
+        explanation += f"   • Alpha-beta cutoffs: {cutoffs}\n"
+        explanation += f"   • Total nodes considered: {total_nodes}\n"
+        explanation += f"   • Pruning efficiency: {pruning_efficiency:.1f}%\n\n"
+        
+        # Zobrist hashing statistics
+        if entries >= 0:
+            explanation += f"🗄️ **Zobrist Hashing**:\n"
+            explanation += f"   • Hash table entries: {entries}\n"
+            if hits >= 0:
+                explanation += f"   • Cache hits this turn: {hits}\n"
+                if entries > 0:
+                    explanation += f"   • Hit rate: {zobrist_hit_rate:.1f}%\n"
+            explanation += "\n"
+        
+        # Performance insights
+        explanation += f"💡 **Performance Insights**:\n"
+        if cutoffs > evals * 0.5:
+            explanation += f"   • Alpha-beta pruning was ON FIRE! Cut off more than half the search tree.\n"
+        elif cutoffs > 0:
+            explanation += f"   • Pruning helped, but there's room for improvement.\n"
+        else:
+            explanation += f"   • No pruning happened - either it wasn't enabled or the search was too shallow.\n"
+        
+        if t > 0.5:
+            explanation += f"   • This move took a bit longer ({t:.3f}s) - probably a complex position.\n"
+        elif t < 0.1:
+            explanation += f"   • Lightning fast! ({t:.3f}s) - my algorithms are running smooth like butter.\n"
+        else:
+            explanation += f"   • Decent speed ({t:.3f}s) - nothing to write home about, but it gets the job done.\n"
+        
+        explanation += f"\nThat's how I roll, baby! 🗽"
+        
+        return explanation
+    
+    def tell_game_story(self):
+        """
+        When opponent says 'What's your take on the game so far?',
+        tell a story about the game from beginning to current state and predict the winner.
+        """
+        if not self.eval_history:
+            return f"{self.nickname}: We just started! Give me a few moves first, will ya?"
+        
+        # Analyze the game progression
+        start_score = self.eval_history[0] if self.eval_history else 0
+        current_score = self.eval_history[-1] if self.eval_history else 0
+        num_moves = len(self.eval_history)
+        
+        # Determine if score is from my perspective (positive = good for me if I'm X, negative = good for me if I'm O)
+        # Adjust based on who I'm playing
+        if self.playing == 'O':
+            # For O, positive scores are bad, negative scores are good
+            adjusted_start = -start_score
+            adjusted_current = -current_score
+        else:
+            adjusted_start = start_score
+            adjusted_current = current_score
+        
+        # Build the story
+        story = f"{self.nickname}: Alright, here's the story so far. "
+        
+        # Beginning
+        if abs(adjusted_start) < 50:
+            story += "We started pretty even, like two cabs racing down Broadway. "
+        elif adjusted_start > 0:
+            story += "I came out strong from the start, like I owned the board. "
+        else:
+            story += "You had the early advantage, but I wasn't worried. "
+        
+        # Middle progression
+        if num_moves > 1:
+            trend = adjusted_current - adjusted_start
+            if abs(trend) < 100:
+                story += "It's been a back-and-forth battle, real tight like rush hour traffic. "
+            elif trend > 200:
+                story += "I've been steadily improving my position, building momentum like a subway train picking up speed. "
+            elif trend < -200:
+                story += "You've been gaining ground, making me work harder than a street vendor on a hot day. "
+            else:
+                story += "The game's been shifting, but nothing too dramatic yet. "
+        
+        # Current state
+        if abs(adjusted_current) > 5000:
+            if adjusted_current > 0:
+                story += "Right now, I'm in a commanding position - this is looking real good for me. "
+            else:
+                story += "Right now, you're in a strong position - I'm gonna need to step up my game. "
+        elif abs(adjusted_current) > 500:
+            if adjusted_current > 0:
+                story += "I'm ahead right now, feeling pretty confident. "
+            else:
+                story += "You're ahead right now, but I'm still in this. "
+        else:
+            story += "Right now it's pretty balanced - anyone's game. "
+        
+        # Prediction
+        if abs(adjusted_current) > 5000:
+            if adjusted_current > 0:
+                story += "My prediction? I'm taking this one home, no doubt about it. "
+            else:
+                story += "My prediction? You've got the edge, but I'm not giving up yet. "
+        elif abs(adjusted_current) > 500:
+            if adjusted_current > 0:
+                story += "My prediction? I like my chances if I keep playing smart. "
+            else:
+                story += "My prediction? You're looking strong, but I can still turn this around. "
+        else:
+            story += "My prediction? It's gonna come down to who makes the better moves from here. "
+        
+        story += "That's my take, capisce?"
+        
+        return story
         
     def print_statistics(self):
         """Print comprehensive statistics for reporting"""
