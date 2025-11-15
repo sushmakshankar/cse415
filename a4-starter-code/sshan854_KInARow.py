@@ -66,14 +66,6 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         self.use_move_ordering = True
         self.cutoffs_with_ordering = 0
         self.cutoffs_without_ordering = 0
-        
-        # Statistics for last move explanation
-        self.last_move_coords = None
-        self.last_move_value = None
-        self.last_move_time = None
-        
-        # Game history for story feature
-        self.eval_history = []  # Track evaluation scores over time
 
     def introduce(self):
         intro = f'\nEy, I\'m {self.long_name}, and I\'m walkin\' here!\n'
@@ -89,20 +81,16 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
     # the game master:
     def prepare(self, game_type, what_side_to_play, opponent_nickname,
                 expected_time_per_move=0.1, utterances_matter=True):
+    # Time limits can be changed mid-game by the game master.
+    # If False, just return 'OK' for each utterance,
+    # or something simple and quick to compute
+    # and do not import any LLM or special APIs.
         self.current_game_type = game_type
         self.playing = what_side_to_play
         self.opponent_nickname = opponent_nickname
         self.time_limit = expected_time_per_move
         self.utterances_matter = utterances_matter
         self.initialize_zobrist_keys(game_type)
-        
-        # Reset statistics for new game
-        self.last_move_coords = None
-        self.last_move_value = None
-        self.last_move_time = None
-        self.turn_count = 0
-        self.eval_history = []
-        
         return "OK"
    
     def initialize_zobrist_keys(self, game_type):
@@ -160,10 +148,6 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         if not legal_moves:
             return [[None, current_state], "No legal moves available!"]
         
-       # ORDER MOVES: Evaluate each move quickly for better alpha-beta pruning
-        if self.use_move_ordering and use_alpha_beta:
-            legal_moves = self.order_moves(legal_moves, current_state, use_zobrist_hashing)
-        
         best_move = None
         best_state = None
 
@@ -180,8 +164,7 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
                 score = self.minimax(new_state, max_ply - 1, 
                                     pruning=use_alpha_beta,
                                     alpha=alpha, 
-                                    beta=beta, 
-                                    use_zobrist=use_zobrist_hashing)
+                                    beta=beta)
                 
                 if score > best_score:
                     best_score = score
@@ -206,8 +189,7 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
                 score = self.minimax(new_state, max_ply - 1, 
                                     pruning=use_alpha_beta,
                                     alpha=alpha, 
-                                    beta=beta, 
-                                    use_zobrist=use_zobrist_hashing)
+                                    beta=beta)
                 
                 if score < best_score:
                     best_score = score
@@ -223,19 +205,10 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         if best_move is None:
             best_move, best_state = legal_moves[0]
         
-        # Calculate time spent on this move
-        move_end_time = time.time()
-        self.last_move_time = move_end_time - self.start_time
-        
-        # Update statistics for last move explanation
-        self.last_move_coords = best_move
-        self.last_move_value = best_score
+        # Update statistics
         self.last_eval_score = best_score
         self.total_cutoffs += self.alpha_beta_cutoffs_this_turn
         self.total_evals += self.num_static_evals_this_turn
-        
-        # Track evaluation history for story feature
-        self.eval_history.append(best_score)
         
         # Calculate per-turn Zobrist stats
         self.zobrist_table_num_hits_this_turn = self.zobrist_successful_reads - (turn_start_reads - turn_start_writes)
@@ -259,23 +232,31 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         move_scores = []
         
         for move, new_state in legal_moves:
+            # Check Zobrist table first if enabled
             if use_zobrist:
                 hash_val = self.compute_zobrist_hash(new_state)
                 if hash_val in self.zobrist_table:
                     score = self.zobrist_table[hash_val]
                     move_scores.append((score, move, new_state))
                     continue
+            
+            # Otherwise do shallow evaluation
             score = self.evaluate_state(new_state)
             move_scores.append((score, move, new_state))
         
+        # Sort based on whose turn it is
         if current_state.whose_move == 'X':
+            # Maximizing: sort descending (best first)
             move_scores.sort(reverse=True, key=lambda x: x[0])
         else:
+            # Minimizing: sort ascending (best first)
             move_scores.sort(key=lambda x: x[0])
         
+        # Return ordered moves (without scores)
         return [(move, state) for score, move, state in move_scores]
     
 
+    # The main adversarial search function:
     def minimax(self, state, depth_remaining, pruning=False,
                 alpha=None, beta=None, use_zobrist=False):
 
@@ -519,23 +500,13 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         return True
     
     def generate_utterance(self, score, old_state, new_state, opponent_remark):
-        """Generate funny New Yorker utterances with attitude"""
         
-        # In competition mode, keep it simple
         if not self.utterances_matter or self.playing_mode == KAgent.COMPETITION:
             return "OK"
         
-        # Check for special requests
-        if opponent_remark:
-            text = opponent_remark.lower()
-            if "tell me how you did that" in text:
-                return self.explain_last_move()
-            if "what's your take on the game so far" in text or "whats your take on the game so far" in text:
-                return self.tell_game_story()
-        
         utterances = []
         
-        # 1. DIDACTIC with NY ATTITUDE: Teach about search statistics
+        # 1. Teach about search statistics
         if self.turn_count % 3 == 1 and self.alpha_beta_cutoffs_this_turn > 0:
             utterances.append(
                 f"Boom! Alpha-beta pruning just saved me {self.alpha_beta_cutoffs_this_turn} branches. "
@@ -543,7 +514,7 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
                 f"Only checked {self.num_static_evals_this_turn} positions."
             )
         
-        # 2. GAME-STATE-SPECIFIC with NY SASS
+        # 2. GAME-STATE-SPECIFIC
         if abs(score) > 10000:
             if (score > 0 and self.playing == 'X') or (score < 0 and self.playing == 'O'):
                 utterances.append("BADA BING! I got you right where I want ya! This game's over faster than a $1 pizza slice!")
@@ -557,7 +528,7 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
         elif abs(score) < 10:
             utterances.append("This is tighter than rush hour on the L train! Every move counts, capisce?")
         
-        # 3. PERSONA-SPECIFIC: NY References
+        # 3. PERSONA-SPECIFIC:
         k = self.current_game_type.k
         if self.turn_count == 1:
             utterances.append(f"Aight, let's get this bread! Looking for {k} in a row - easier than finding a decent bagel in Manhattan!")
@@ -569,7 +540,7 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
                 f"I'm workin' harder than a hot dog vendor at a Yankees game!"
             )
         
-        # 4. RESPONSIVE: React to opponent with NY ATTITUDE
+        # 4. RESPONSIVE: 
         if opponent_remark and len(self.opponent_past_utterances) > 0:
             last_remark = opponent_remark.lower()
             if 'random' in last_remark:
@@ -581,13 +552,13 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
             elif 'hello' in last_remark or 'hi' in last_remark:
                 utterances.append("Yo! What's good? Let's play some K-in-a-Row!")
         
-        # 5. OBSERVANT: NY-style observations
+        # 5. OBSERVANT: 
         empty_count = sum(1 for row in new_state.board for cell in row if cell == ' ')
         total_cells = len(new_state.board) * len(new_state.board[0])
         if empty_count < total_cells * 0.3:
             utterances.append("Board's fillin' up like Penn Station at 5 PM! Endgame time, baby!")
         
-        # 6. EDUCATIONAL with NY FLAVOR
+        # 6. EDUCATIONAL
         if self.turn_count == 2:
             utterances.append(
                 f"Lemme break it down for ya - I check every {k}-length window on this board. "
@@ -612,7 +583,6 @@ class OurAgent(KAgent):  # Keep the class name "OurAgent" so a game master
             import random
             return random.choice(ny_oneliners)
         
-        # Combine 1-2 utterances
         if len(utterances) == 1:
             return utterances[0]
         else:
