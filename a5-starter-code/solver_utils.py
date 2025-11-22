@@ -30,9 +30,24 @@ def value_iteration(
     """
     new_v_table: tm.VTable = v_table.copy()
     q_table: tm.QTable = {}
-    # noinspection PyUnusedLocal
     max_delta = 0.0
     # *** BEGIN OF YOUR CODE ***
+    for s in mdp.nonterminal_states:
+        best_q = float("-inf")
+
+        for a in mdp.actions:
+            total = 0.0
+            # For all possible successors
+            for s2 in mdp.all_states:
+                p = mdp.transition(s, a, s2)
+                if p > 0:
+                    r = mdp.reward(s, a, s2)
+                    total += p * (r + mdp.config.gamma * v_table[s2])
+            q_table[(s, a)] = total
+            best_q = max(best_q, total)
+
+        new_v_table[s] = best_q  # Changed from new_v to new_v_table
+        max_delta = max(max_delta, abs(v_table[s] - best_q))
     # ***  END OF YOUR CODE  ***
     return new_v_table, q_table, max_delta
 
@@ -54,7 +69,20 @@ def extract_policy(
         policy: tm.Policy
             A Policy maps nonterminal states to actions.
     """
+    policy: tm.Policy = {}
     # *** BEGIN OF YOUR CODE ***
+    for s in mdp.nonterminal_states:
+        best_action = None
+        best_q = float("-inf")
+        
+        for a in mdp.actions:
+            if q_table[(s, a)] > best_q:
+                best_q = q_table[(s, a)]
+                best_action = a
+        
+        policy[s] = best_action
+    # ***  END OF YOUR CODE  ***
+    return policy
 
 
 def q_update(
@@ -74,6 +102,14 @@ def q_update(
     """
     state, action, reward, next_state = transition
     # *** BEGIN OF YOUR CODE ***
+    if next_state in mdp.nonterminal_states:
+        max_q_next = max(q_table[(next_state, a)] for a in mdp.actions)
+    else:
+        # Terminal state has value 0
+        max_q_next = 0.0
+    
+    current_q = q_table[(state, action)]
+    q_table[(state, action)] = current_q + alpha * (reward + mdp.config.gamma * max_q_next - current_q)
 
 
 def extract_v_table(mdp: tm.TohMdp, q_table: tm.QTable) -> tm.VTable:
@@ -88,6 +124,14 @@ def extract_v_table(mdp: tm.TohMdp, q_table: tm.QTable) -> tm.VTable:
             The extracted value table.
     """
     # *** BEGIN OF YOUR CODE ***
+    v_table: tm.VTable = {}
+    
+    for s in mdp.nonterminal_states:
+        v_table[s] = max(q_table[(s, a)] for a in mdp.actions)
+    
+    v_table[mdp.terminal] = 0.0
+    
+    return v_table
 
 
 def choose_next_action(
@@ -121,6 +165,13 @@ def choose_next_action(
             The chosen action.
     """
     # *** BEGIN OF YOUR CODE ***
+    best_q = max(q_table[(state, a)] for a in mdp.actions)
+    
+    # Find all actions that achieve this maximum (there may be ties)
+    best_actions = [a for a in mdp.actions if q_table[(state, a)] == best_q]
+    
+    # Use epsilon_greedy to select action
+    return epsilon_greedy(best_actions, epsilon)
 
 
 def custom_epsilon(n_step: int) -> float:
@@ -136,6 +187,8 @@ def custom_epsilon(n_step: int) -> float:
             epsilon value when choosing the nth step.
     """
     # *** BEGIN OF YOUR CODE ***
+    epsilon = 1.0 / n_step
+    return epsilon
 
 
 def custom_alpha(n_step: int) -> float:
