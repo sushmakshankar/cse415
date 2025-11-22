@@ -1,0 +1,21 @@
+Name: Sushma Shankar, Deveshi Modi
+Student ID: 2001840, 2239898
+Email: sshan854@uw.edu, dmodi@uw.edi
+
+1. In the context of the Towers-of-Hanoi World MDP, explain how the Value Iteration algorithm uses the Bellman equations to iteratively compute the value table. (5 points)
+
+    In our Towers-of-Hanoi MDP, Value Iteration repeatedly updates the value of each state using the Bellman optimality equation until the values stop changing much. We start with all state values set 
+    to 0, then for each state we look at every action, compute the expected reward plus discounted future value over all possible next states (taking the transition noise into account), and keep the 
+    maximum. The goal state always has value 0 because there are no future rewards after reaching it, and the discount factor makes reaching the goal sooner better than reaching it later.
+
+
+2. How did you decide your custom epsilon function? What thoughts went into that and what would you change to further optimize your exploration? If your function was strong, explain why. (5 points)
+
+    We used the custom epsilon schedule ε(n) = 1/√n. At the beginning this gives a high exploration rate, so the agent tries many different actions, and then epsilon slowly decreases so the policy becomes more greedy over time without cutting 
+    off exploration too quickly. This schedule satisfies the GLIE conditions (epsilon goes to 0 but not too fast), which helps the agent eventually converge to an optimal policy.
+
+
+3. What is another exploration strategy other than epsilon-greedy that you believe would fit well with the Towers of Hanoi formulation? Why? (5 points)
+
+    As an alternative to ε-greedy, we suggested using Upper Confidence Bound (UCB) for exploration. UCB picks actions based on both their current 
+    Q-value and how often they’ve been tried, giving a bonus to actions that are more uncertain. This fits the Towers-of-Hanoi setting because it encourages systematic exploration of less-visited moves instead of random exploration, and should help the agent find the optimal sequence of moves more efficiently.
