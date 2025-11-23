@@ -187,7 +187,7 @@ def custom_epsilon(n_step: int) -> float:
             epsilon value when choosing the nth step.
     """
     # *** BEGIN OF YOUR CODE ***
-    return 1.0 / (n_step)
+    return 1000.0 / (1000.0+n_step)
 
 
 def custom_alpha(n_step: int) -> float:
@@ -199,7 +199,7 @@ def custom_alpha(n_step: int) -> float:
         n_step: the nth update for which the alpha value will be used.
 
     Returns:
-        alpha: float
+        alpha: f`loat
             alpha value when performing the nth Q update.
     """
     # *** BEGIN OF YOUR CODE ***
