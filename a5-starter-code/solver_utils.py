@@ -1,3 +1,7 @@
+# Partnership? YES
+# Submitting partner: Sushma Shankar
+# Other partner: Deveshi Modi
+
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from typing import Tuple, Callable, List

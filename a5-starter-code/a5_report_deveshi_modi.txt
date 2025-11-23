@@ -1,6 +1,7 @@
-Name: Sushma Shankar, Deveshi Modi
-Student ID: 2001840, 2239898
-Email: sshan854@uw.edu, dmodi@uw.edi
+Partnership? YES
+Names: Sushma Shankar, Deveshi Modi
+Student IDs: 2001840, 2239898
+Emails: sshan854@uw.edu, dmodi@uw.edi
 
 1. In the context of the Towers-of-Hanoi World MDP, explain how the Value Iteration algorithm uses the Bellman equations to iteratively compute the value table. (5 points)
 
